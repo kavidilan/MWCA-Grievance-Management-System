@@ -1,0 +1,20 @@
+{
+  "name": "mwca-grievance-system-backend",
+  "version": "1.0.0",
+  "description": "Node.js and SQLite API for the MWCA Grievance Management System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node database/seed.js",
+    "seed:mongo": "node database/seed-mongo.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongoose": "^8.8.4",
+    "multer": "^2.4.0",
+    "nodemailer": "^10.0.10"
+  }
+}

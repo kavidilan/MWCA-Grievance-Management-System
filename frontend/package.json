@@ -1,0 +1,10 @@
+{
+  "name": "mwca-grievance-system-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static frontend for the MWCA Grievance Management System",
+  "scripts": {
+    "start": "node static-server.js",
+    "dev": "node --watch static-server.js"
+  }
+}

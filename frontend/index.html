@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="Secure grievance registration, referral and tracking for the Ministry of Women and Child Affairs." />
+  <title>WCA Grievance Management System</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="interactions.css" />
+  <link rel="stylesheet" href="ministry-theme.css" />
+</head>
+
+<body>
+  <section class="login-screen" id="loginScreen">
+    <div class="login-card">
+      <div class="brand"><img class="brand-logo" src="ministry-logo.jpg" alt="Ministry of Women and Child Affairs" />
+      </div>
+      <span class="eyebrow">SECURE STAFF ACCESS</span>
+      <h1>Sign in to the grievance workspace</h1>
+      <p>Use your ministry account to review, manage and track grievance records. Your access depends on your assigned
+        role.</p>
+      <form id="loginForm">
+        <label>Email address<input type="email" name="email" id="loginEmail" value="admin@mwca.gov"
+            autocomplete="username" required /></label>
+        <label>Password<input type="password" name="password" id="loginPassword" value="Admin@123"
+            autocomplete="current-password" required /></label>
+        <button class="primary" type="submit">Sign in</button>
+        <small id="loginError" role="alert"></small>
+      </form>
+      <div class="demo-accounts" style="margin-top:16px;padding-top:14px;border-top:1px solid #e2e5ef">
+        <span style="font-size:11px;font-weight:700;color:#68708a;display:block;margin-bottom:8px">DEMO QUICK
+          ACCESS:</span>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button type="button" class="demo-btn" data-email="admin@mwca.gov" data-pass="Admin@123"
+            style="font-size:11px;padding:4px 8px;background:#eeeafd;color:#5546c2;border:1px solid #d0c8f8;border-radius:6px;cursor:pointer">Admin</button>
+          <button type="button" class="demo-btn" data-email="officer@mwca.gov" data-pass="Officer@123"
+            style="font-size:11px;padding:4px 8px;background:#f0f1f5;color:#333;border:1px solid #ddd;border-radius:6px;cursor:pointer">Officer</button>
+          <button type="button" class="demo-btn" data-email="reviewer@mwca.gov" data-pass="Reviewer@123"
+            style="font-size:11px;padding:4px 8px;background:#f0f1f5;color:#333;border:1px solid #ddd;border-radius:6px;cursor:pointer">Reviewer</button>
+          <button type="button" class="demo-btn" data-email="viewer@mwca.gov" data-pass="Viewer@123"
+            style="font-size:11px;padding:4px 8px;background:#f0f1f5;color:#333;border:1px solid #ddd;border-radius:6px;cursor:pointer">Viewer</button>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><img class="brand-logo" src="ministry-logo.jpg" alt="Ministry of Women and Child Affairs" />
+      </div>
+      <nav id="nav">
+        <span class="nav-label">Workspace</span>
+        <button class="nav-item active" data-page="dashboard"><span class="nav-icon">⌂</span><span
+            class="nav-copy"><strong>Overview</strong><small>Today’s activity</small></span></button>
+        <button class="nav-item" data-page="grievances"><span class="nav-icon">▤</span><span
+            class="nav-copy"><strong>Find a grievance</strong><small>Search all cases</small></span><b
+            id="navCount">12</b></button>
+        <button class="nav-item" data-page="register"><span class="nav-icon">＋</span><span
+            class="nav-copy"><strong>Register a grievance</strong><small>Create a new case</small></span></button>
+        <button class="nav-item" data-page="referrals"><span class="nav-icon">⇄</span><span
+            class="nav-copy"><strong>Assign & refer</strong><small>Move work forward</small></span></button>
+        <span class="nav-label nav-label-spaced">Insights</span>
+        <button class="nav-item" data-page="reports"><span class="nav-icon">▥</span><span
+            class="nav-copy"><strong>Reports</strong><small>Performance overview</small></span></button>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="shield">✓</div>
+        <div><strong>Secure workspace</strong><small>Audit logging enabled</small></div><span class="status-dot"
+          aria-label="System secure"></span>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <button class="menu" id="menu" aria-label="Open navigation">☰</button>
+        <div class="title">
+          <h1 id="pageTitle">Grievance Overview</h1>
+          <p id="pageSub">Monday, 7 September 2026</p>
+        </div>
+        <div class="header-actions">
+          <div class="language-switcher" aria-label="Choose language"><button type="button"
+              data-language="en">English</button><button type="button" data-language="si">සිංහල</button></div><button
+            class="secondary" id="openSmtpBtn" type="button" style="padding:7px 12px;font-size:12px">✉ Email
+            Settings</button><button class="user-profile" id="profileBtn" type="button" aria-label="Open profile">
+            <div class="avatar" id="userAvatar">KD</div><span class="user"><strong id="userName">K. D.
+                Bandara</strong><span id="userRole">Admin Officer</span></span>
+          </button><button class="text-btn" id="logoutBtn">Sign out</button>
+        </div>
+      </header>
+
+      <section class="page active" id="dashboardPage">
+        <div class="welcome">
+          <div><span class="eyebrow">TODAY’S WORK</span>
+            <h2>Good morning, MWCA Grievance Officer</h2>
+            <p>Review new cases, assign to relevant departments, or register a new grievance.</p>
+          </div><button class="primary" data-go="register">＋ Register a grievance</button>
+        </div>
+        <div class="stats dashboard-stats">
+          <article class="drill-card card-total" tabindex="0" role="button" data-drill-status="all">
+            <div class="stat-icon indigo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+                <path d="M8 8h8M8 12h8M8 16h5" />
+              </svg></div>
+            <div><span>Total Grievances</span><strong id="totalStat">10</strong></div>
+          </article>
+          <article class="drill-card card-awaiting" tabindex="0" role="button" data-drill-status="Awaiting Review">
+            <div class="stat-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="8.5" />
+                <path d="M12 7v5l3 2" />
+              </svg></div>
+            <div><span>Awaiting Review</span><strong id="awaitingStat">5</strong></div>
+          </article>
+          <article class="drill-card card-referrals" tabindex="0" role="button" data-drill-status="Forwarded">
+            <div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 7h13M14 3l4 4-4 4M19 17H6M10 13l-4 4 4 4" />
+              </svg></div>
+            <div><span>Department Referrals</span><strong id="forwardedStat">2</strong></div>
+          </article>
+          <article class="drill-card card-resolved" tabindex="0" role="button" data-drill-status="Resolved">
+            <div class="stat-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="8.5" />
+                <path d="m8 12 2.5 2.5L16 9" />
+              </svg></div>
+            <div><span>Resolved</span><strong id="resolvedStat">2</strong></div>
+          </article>
+          <article class="drill-card card-overdue" tabindex="0" role="button" id="overdueCard">
+            <div class="stat-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 9v4m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg></div>
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between"><span>Overdue</span><span
+                  class="pulse-dot" title="Overdue cases require follow-up"></span></div><strong
+                id="overdueStat">7</strong><button type="button" class="reminder-btn" id="sendOfficeRemindersBtn">✉ Send
+                office reminders</button>
+            </div>
+          </article>
+        </div>
+        <div class="dashboard-grid">
+          <article class="panel wide">
+            <div class="panel-head">
+              <div>
+                <h3>Grievance activity</h3>
+              </div><select aria-label="Choose reporting period">
+                <option>Last 6 months</option>
+              </select>
+            </div>
+            <div class="legend"><span><i class="dot purple"></i>Received</span><span><i
+                  class="dot teal"></i>Resolved</span></div>
+            <div class="chart" id="chart"></div>
+            <div class="months">
+              <span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>By Category</h3>
+              </div>
+            </div>
+            <div class="donut-wrap"><button class="donut" aria-label="View all categories" data-drill-category="all">
+                <div><strong id="donutTotal">249</strong><span>Total</span></div>
+              </button>
+              <div class="category-list" id="categoryDonutList"><button data-drill-category="Women"><i
+                    style="background:#e88854"></i>Women’s Grievances <b id="catPctWomen">45%</b></button><button
+                  data-drill-category="Child"><i style="background:#6758d8"></i>Child Grievances <b
+                    id="catPctChild">42%</b></button><button data-drill-category="General / Other"><i
+                    style="background:#44a79d"></i>General / Other <b id="catPctOther">13%</b></button></div>
+            </div>
+          </article>
+        </div>
+        <article class="panel recent">
+          <div class="panel-head">
+            <div>
+              <h3>Recent grievances</h3>
+            </div><button class="text-btn" data-go="grievances">View all →</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Reference</th>
+                  <th>Complainant & subject</th>
+                  <th>Source</th>
+                  <th>Category / Subcategory</th>
+                  <th>Assigned Department</th>
+                  <th>Status</th>
+                  <th>Due date</th>
+                </tr>
+              </thead>
+              <tbody id="recentBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="page" id="grievancesPage">
+        <div class="filter-summary" id="filterSummary">
+          <div><span>Showing</span><strong id="filterTitle">All grievances</strong></div><b id="resultCount">249
+            records</b><button id="clearFilters">Clear filters ×</button>
+        </div>
+        <div class="action-row">
+          <div class="search"><span>⌕</span><input id="searchInput" aria-label="Search grievances"
+              placeholder="Search by ref, name, subject or details..." /></div>
+          <select id="sourceFilter" aria-label="Filter by source">
+            <option value="all">All Sources</option>
+            <option value="Presidential Secretariat">Presidential Secretariat</option>
+            <option value="Prime Minister's Office">Prime Minister's Office</option>
+            <option value="Public Persons">Public Persons</option>
+            <option value="Admin Unit">Admin Unit</option>
+          </select>
+          <select id="categoryFilter" aria-label="Filter by category">
+            <option value="all">All Categories</option>
+            <option value="Women">Women</option>
+            <option value="Child">Child</option>
+            <option value="General / Other">General / Other</option>
+          </select>
+          <select id="subcategoryFilter" aria-label="Filter by subcategory">
+            <option value="all">All Subcategories</option>
+          </select>
+          <select id="departmentFilter" aria-label="Filter by department">
+            <option value="all">All Departments</option>
+            <option value="Minister's Office">Minister's Office</option>
+            <option value="Secretary Office">Secretary Office</option>
+            <option value="Financial">Financial</option>
+            <option value="Development Branch">Development Branch</option>
+            <option value="Planning Division">Planning Division</option>
+            <option value="Child Secretariat Office">Child Secretariat Office</option>
+            <option value="Women's Bureau">Women's Bureau</option>
+            <option value="National Commission On Women">National Commission On Women</option>
+            <option value="National Child Protection Authority">National Child Protection Authority</option>
+            <option value="Department of Probation and Child Care Service">Department of Probation and Child Care
+              Service</option>
+          </select>
+          <select id="statusFilter" aria-label="Filter by status">
+            <option value="all">All Statuses</option>
+            <option>Awaiting Review</option>
+            <option>Assigned</option>
+            <option>Forwarded</option>
+            <option>Resolved</option>
+            <option>Closed</option>
+          </select>
+          <select id="priorityFilter" aria-label="Filter by priority">
+            <option value="all">All Priorities</option>
+            <option>Critical</option>
+            <option>High</option>
+            <option>Normal</option>
+          </select>
+          <button class="secondary" id="exportBtn">⇩ Download list</button>
+          <button class="secondary" id="openDeptSummaryBtn" type="button"
+            style="padding:7px 12px;font-size:12px;display:inline-flex;align-items:center;gap:4px">✉ Send Dept Summary
+            Email</button>
+          <button class="primary" data-go="register">＋ Register a grievance</button>
+        </div>
+        <article class="panel">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>File No</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Category</th>
+                  <th>Heading Of the Letter</th>
+                  <th>Sent by</th>
+                  <th>Forwarded to</th>
+                  <th>The Action taken by the relevant Division and the Date</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="allBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="page" id="registerPage">
+        <div class="form-layout">
+          <form class="panel form-card" id="grievanceForm">
+            <div class="step-head">
+              <div><span>Register a grievance</span></div><strong>Fields marked * are required</strong>
+            </div>
+            <fieldset>
+              <legend>1. Intake Source & Details</legend>
+              <div class="form-grid"><label>Where did it come from? *<select name="source" id="regSource" required>
+                    <option value="Presidential Secretariat">Presidential Secretariat</option>
+                    <option value="Prime Minister's Office">Prime Minister's Office</option>
+                    <option value="Public Persons" selected>Public Persons</option>
+                  </select></label><label>Date received *<input type="date" name="date" id="regDate" value="2026-09-15"
+                    required /></label><label>Intake Method<select name="method">
+                    <option>By Hand</option>
+                    <option>Letter / Dispatch</option>
+                    <option>Email</option>
+                    <option>Telephone Hotline</option>
+                    <option>Online Form</option>
+                  </select></label><label>Priority Level<select name="priority">
+                    <option value="Normal">Normal</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Urgent</option>
+                  </select><small class="field-help">Critical: Immediate threat or severe risk requiring emergency
+                    dispatch.</small></label></div>
+            </fieldset>
+            <fieldset>
+              <legend>2. Complainant Information</legend>
+              <div class="form-grid"><label>Full name *<input name="name" placeholder="Enter complainant full name"
+                    required /></label><label>NIC / ID Number<input name="nic"
+                    placeholder="e.g. 199012345678" /></label><label>Contact number<input name="phone"
+                    placeholder="07X XXX XXXX" />
+                </label><label>Address<input name="address"
+                    placeholder="Enter address" /></label><label>District<select name="district">
+                    <option>Colombo</option>
+                    <option>Gampaha</option>
+                    <option>Kalutara</option>
+                    <option>Kandy</option>
+                    <option>Galle</option>
+                    <option>Matara</option>
+                    <option>Jaffna</option>
+                    <option>Kurunegala</option>
+                    <option>Batticaloa</option>
+                    <option>Other</option>
+                  </select></label></div>
+            </fieldset>
+            <fieldset>
+              <legend>3. Classification & Routing</legend>
+              <div class="form-grid"><label>Main Category *<select name="category" id="regCategory" required>
+                    <option value="Women">Women</option>
+                    <option value="Child">Child</option>
+                    <option value="General / Other">Other</option>
+                  </select></label><label>Subcategory *<select name="subcategory" id="regSubcategory" required>
+                    <option value="">-- Select Subcategory --</option>
+                  </select></label><label class="full">Assign / Forward to Department or Ministry <small>(Select from
+                    list or type any custom department/ministry name)</small><input list="departmentSuggestions"
+                    name="assignedDivision" id="regDepartment"
+                    placeholder="Type or select any department or ministry (e.g. NCPA, Ministry of Health, Sri Lanka Police)" /><datalist
+                    id="departmentSuggestions">
+                    <option value="Minister's Office">Minister's Office</option>
+                    <option value="Secretary Office">Secretary Office</option>
+                    <option value="Financial">Financial</option>
+                    <option value="Development Branch">Development Branch</option>
+                    <option value="Planning Division">Planning Division</option>
+                    <option value="Child Secretariat Office">Child Secretariat Office</option>
+                    <option value="Women's Bureau">Women's Bureau</option>
+                    <option value="National Commission On Women">National Commission On Women</option>
+                    <option value="National Child Protection Authority">National Child Protection Authority</option>
+                    <option value="Department of Probation and Child Care Service">Department of Probation and Child
+                      Care Service</option>
+                  </datalist></label><label class="full">Recipient Department Emails <small>(Separate multiple addresses
+                    with commas or semicolons)</small><input type="text" name="recipientEmail" id="regRecipientEmail"
+                    placeholder="department@example.gov, officer@example.gov" /></label><label class="full">Attach
+                  Grievance Documents / Letters <small>(Select multiple PDF, Word, or image files)</small><input
+                    type="file" id="regAttachmentFile" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" multiple />
+                  <div id="attachmentFileNotice" style="margin-top:6px;font-size:0.85rem;color:var(--text-muted,#555)">
+                  </div>
+                </label><label>Confidentiality Level<select name="confidential">
+                    <option>Standard</option>
+                    <option>Restricted</option>
+                    <option>Highly Confidential</option>
+                  </select></label><label class="full">Subject / Title *<input name="subject"
+                    placeholder="e.g., Request for urgent assistance regarding child welfare" required /></label><label
+                  class="full">Detailed Description *<textarea name="description" rows="5"
+                    placeholder="Write full details of the grievance, requested relief, and context."
+                    required></textarea></label></div>
+            </fieldset>
+            <div class="form-actions"><button type="button" class="secondary" data-go="dashboard">Cancel</button><button
+                type="submit" class="primary">Register grievance</button></div>
+          </form>
+        </div>
+      </section>
+
+      <section class="page" id="referralsPage">
+        <div class="referral-head">
+          <div>
+            <h2>Department Referrals & Assignments</h2>
+            <p>Track grievances routed to MWCA departments and agencies.</p>
+          </div><button class="primary" id="newReferral">＋ Assign new referral</button>
+        </div>
+        <div class="kanban">
+          <div class="kanban-col">
+            <h3>Awaiting Assignment</h3>
+            <div id="assignCards"></div>
+          </div>
+          <div class="kanban-col">
+            <h3>Forwarded to Department</h3>
+            <div id="forwardCards"></div>
+          </div>
+          <div class="kanban-col">
+            <h3>Resolved by Department</h3>
+            <div id="responseCards"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="reportsPage">
+        <div class="report-banner">
+          <div><span class="eyebrow">MANAGEMENT REPORTING</span>
+            <h2>MWCA Grievance Performance & Department Distribution</h2>
+            <p>Ministry of Women and Child Affairs</p>
+          </div>
+          <div><button class="secondary" data-drill-status="all">View all grievances</button> <button class="secondary"
+              id="printBtn">⇩ Print report</button></div>
+        </div>
+        <div class="stats report-stats">
+          <article class="drill-card" tabindex="0" role="button" data-drill-status="all">
+            <div><span>Average resolution time</span><strong>3.2 days</strong><small class="up">View all cases →</small>
+            </div>
+          </article>
+          <article class="drill-card" tabindex="0" role="button" data-drill-status="Resolved">
+            <div><span>Resolved within target</span><strong>88%</strong><small class="up">View resolved cases →</small>
+            </div>
+          </article>
+          <article class="drill-card" tabindex="0" role="button" data-drill-status="Awaiting Review">
+            <div><span>Awaiting review</span><strong>18</strong><small class="danger">View cases needing review
+                →</small></div>
+          </article>
+        </div>
+        <div class="dashboard-grid">
+          <article class="panel wide">
+            <div class="panel-head">
+              <h3>Department Referral Distribution</h3><button class="text-btn" data-drill-status="Forwarded">View all
+                referrals →</button>
+            </div>
+            <div class="progress-list" id="departmentProgressList">
+              <div class="report-link" data-drill-department="National Child Protection Authority"><span>National Child
+                  Protection Authority <b>34%</b></span><progress value="34" max="100"></progress></div>
+              <div class="report-link" data-drill-department="National Committee on Women"><span>National Committee on
+                  Women <b>22%</b></span><progress value="22" max="100"></progress></div>
+              <div class="report-link" data-drill-department="Women's Bureau of Sri Lanka"><span>Women's Bureau of Sri
+                  Lanka <b>20%</b></span><progress value="20" max="100"></progress></div>
+              <div class="report-link" data-drill-department="Department of Probation and Child Care Services">
+                <span>Department of Probation and Child Care Services <b>15%</b></span><progress value="15"
+                  max="100"></progress>
+              </div>
+              <div class="report-link" data-drill-department="National Secretariat for Early Childhood Development">
+                <span>National Secretariat for Early Childhood Development <b>9%</b></span><progress value="9"
+                  max="100"></progress>
+              </div>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-head">
+              <h3>Source Distribution</h3><button class="text-btn" data-drill-status="all">View all →</button>
+            </div>
+            <div class="source-bars"><button data-drill-source="Presidential Secretariat"><span>Presidential
+                  Secretariat</span><b id="srcPctPres">28%</b></button><button
+                data-drill-source="Prime Minister's Office"><span>Prime Minister's Office</span><b
+                  id="srcPctPMO">22%</b></button><button data-drill-source="Public Persons"><span>Public
+                  Persons</span><b id="srcPctPublic">38%</b></button><button data-drill-source="Admin Unit"><span>Admin
+                  Unit</span><b id="srcPctAdmin">12%</b></button></div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="caseDialog">
+    <div class="dialog-head">
+      <div><span class="eyebrow">GRIEVANCE DETAILS</span>
+        <h2 id="dialogRef"></h2>
+      </div><button id="closeDialog" aria-label="Close">×</button>
+    </div>
+    <div id="dialogContent"></div>
+    <div class="dialog-actions case-actions"><label>Status<select id="dialogStatus">
+          <option>Awaiting Review</option>
+          <option>Assigned</option>
+          <option>Forwarded</option>
+          <option>Resolved</option>
+          <option>Closed</option>
+        </select></label><label>Priority<select id="dialogPriority">
+          <option>Critical</option>
+          <option>High</option>
+          <option>Normal</option>
+        </select></label><label>Assign / Forward to Department or Ministry<input list="departmentSuggestions"
+          id="dialogAssignee" placeholder="Type or select any department or ministry name" /></label><label
+        style="grid-column: span 2">Recipient Department Email <small>(Auto-filled or custom)</small><input type="text"
+          id="dialogRecipientEmail" placeholder="one@example.gov, two@example.gov" /></label><button class="primary"
+        id="saveStatus">Save update</button><button class="secondary" id="sendEmailBtn" type="button">✉ Send Email
+        Referral</button><button class="danger-button" id="sendReminderBtn" type="button" hidden>⚠ Send Overdue
+        Reminder</button><button class="danger-button" id="deleteCase" type="button">Delete</button></div>
+  </dialog>
+
+  <dialog id="emailDialog">
+    <div class="dialog-head">
+      <div><span class="eyebrow">EMAIL REFERRAL DISPATCH</span>
+        <h2>Send Official Referral Email</h2>
+      </div><button id="closeEmailDialog" aria-label="Close">×</button>
+    </div>
+    <form id="emailForm" style="display:flex;flex-direction:column;gap:14px;padding-top:12px">
+      <div id="emailSmtpBanner" class="notice" style="background:#eef0f8;border-left:4px solid #6758d8"><strong>Email
+          Dispatch Engine</strong>
+        <p>Dispatches grievance details and CSV summary attachments to the designated department.</p>
+      </div><label>Target Department / Ministry<input list="departmentSuggestions" id="emailTargetDept"
+          placeholder="Type or select target department or ministry" required /></label><label>Recipient Email Addresses
+        *<input id="emailTargetAddr" type="text" required
+          placeholder="one@example.gov, two@example.gov" /></label><small>Separate multiple addresses with commas or
+        semicolons.</small><label>Email Subject<input id="emailSubject" readonly
+          style="background:#f4f5f8" /></label><label>Referral Note / Instructions for Department<textarea
+          id="emailNote" rows="4"
+          placeholder="Enter specific instructions, urgency context, or follow-up deadline..."></textarea></label>
+      <div id="emailAttachmentNotice" style="font-size:0.85rem;color:#444"></div>
+      <div class="dialog-actions"><button type="button" class="secondary" id="openSmtpFromDispatchBtn">⚙ Email
+          Settings</button><button type="button" class="secondary" id="cancelEmail">Cancel</button><button type="submit"
+          class="primary" id="dispatchEmailSubmitBtn">Dispatch Email Now</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="deptSummaryDialog" style="max-width:720px;width:95%">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow">MINISTRY UPDATE DISPATCH</span>
+        <h2>Department Grievance Summary Email</h2>
+        <p class="dialog-subtitle" style="margin-top:2px;font-size:0.85rem;color:#666">Send department-wise grievance
+          summary & attach all supporting documents</p>
+      </div>
+      <button id="closeDeptSummaryDialog" aria-label="Close">×</button>
+    </div>
+    <form id="deptSummaryForm" style="display:flex;flex-direction:column;gap:14px;padding-top:12px">
+      <div id="deptSummarySmtpNotice" class="notice" style="background:#eef0f8;border-left:4px solid #6758d8">
+        <strong>Department Summary Dispatch Engine</strong>
+        <p>Dispatches aggregated HTML summary, CSV report, and attached grievance documents to the selected
+          department/ministry.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <label>Target Department / Ministry *
+          <input list="departmentSuggestions" id="deptSummaryTargetDept" placeholder="Type or select target department"
+            required />
+        </label>
+        <label>Recipient Email Addresses *
+          <input id="deptSummaryRecipientEmails" type="text" placeholder="department@mwca.gov.lk, officer@mwca.gov.lk"
+            required />
+        </label>
+      </div>
+      <div style="background:#f8f9fc;border:1px solid #e2e8f0;border-radius:8px;padding:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <strong style="font-size:0.9rem;color:#1e1b4b">Grievances Included in Summary Update</strong>
+          <span id="deptSummaryCountBadge" class="badge" style="background:#6758d8;color:#fff;font-size:11px">0 Cases
+            Found</span>
+        </div>
+        <div id="deptSummaryGrievanceList"
+          style="max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:4px">
+          <!-- Grievance checkboxes dynamically rendered here -->
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label
+          style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:0.88rem;color:#2d3748">
+          <input type="checkbox" id="deptSummaryAttachDocs" checked
+            style="width:16px;height:16px;accent-color:#6758d8" />
+          Attach all uploaded documents/letters associated with these grievances
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.82rem;color:#475569">
+          <input type="checkbox" id="deptSummarySimulate" style="width:15px;height:15px;accent-color:#6758d8" />
+          Simulate email dispatch (Demo / Test mode without sending live email)
+        </label>
+      </div>
+      <label>Ministry Cover Note / Official Instructions
+        <textarea id="deptSummaryNote" rows="3"
+          placeholder="Enter official notes for department head, urgency level, or action deadlines..."></textarea>
+      </label>
+      <div id="deptSummaryAttachmentNotice" style="font-size:0.85rem;color:#444"></div>
+      <div class="dialog-actions">
+        <button type="button" class="secondary" id="openSmtpFromDeptSummaryBtn">⚙ Email Settings</button>
+        <button type="button" class="secondary" id="cancelDeptSummary">Cancel</button>
+        <button type="submit" class="primary" id="dispatchDeptSummarySubmitBtn">✉ Dispatch Department Summary
+          Email</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="smtpDialog" class="smtp-dialog">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow">SYSTEM CONFIGURATION</span>
+        <h2>Email & SMTP Settings</h2>
+        <p class="dialog-subtitle">Configure Gmail SMTP credentials for sending official grievance referral emails.</p>
+      </div>
+      <button id="closeSmtpDialog" aria-label="Close">×</button>
+    </div>
+    <form id="smtpForm" style="padding:22px 25px;display:flex;flex-direction:column;gap:14px">
+      <div id="smtpStatusBadge" class="notice" style="background:#f5f6fa;border-left:4px solid #6758d8">
+        <strong>Status: Checking SMTP configuration…</strong>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <label>SMTP Host<input name="host" id="smtpHost" value="smtp.gmail.com" placeholder="smtp.gmail.com"
+            required /></label>
+        <label>SMTP Port<input name="port" id="smtpPort" type="number" value="465" placeholder="465" required /></label>
+      </div>
+      <label>Sender Email Address *
+        <input name="user" id="smtpUser" type="email" placeholder="your-agency@gmail.com" required />
+      </label>
+      <label>Google App Password (16 Characters) *
+        <input name="pass" id="smtpPass" type="password" placeholder="abcd efgh ijkl mnop"
+          autocomplete="new-password" />
+        <small style="font-weight:400;color:#666;margin-top:4px;display:block">For Gmail: Turn on 2-Step Verification on
+          Google Account, then generate a 16-character App Password at <a
+            href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener"
+            style="color:#6758d8">myaccount.google.com/apppasswords</a>.</small>
+      </label>
+      <label>Sender Display / From Header
+        <input name="mailFrom" id="smtpMailFrom" placeholder="Ministry Referral Desk <your-agency@gmail.com>" />
+      </label>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+        <label style="flex:1">Test Recipient Email
+          <input type="email" id="smtpTestEmail" placeholder="Enter recipient email to test sending..." />
+        </label>
+        <button type="button" class="secondary" id="testSmtpBtn" style="margin-top:20px">⚡ Test Connection</button>
+      </div>
+      <small id="smtpNotice" role="alert" style="min-height:18px"></small>
+      <div class="dialog-actions">
+        <button type="button" class="secondary" id="cancelSmtp">Cancel</button>
+        <button type="submit" class="primary">Save SMTP Settings</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="remindersDialog" class="reminders-dialog">
+    <div class="dialog-head">
+      <div>
+        <span class="eyebrow" style="color:#e11d48">OVERDUE ACTION DESK</span>
+        <h2>Send Office Reminders</h2>
+        <p class="dialog-subtitle">Batch email dispatch for overdue grievances requiring official follow-up action.</p>
+      </div>
+      <button id="closeRemindersDialog" aria-label="Close">×</button>
+    </div>
+    <form id="remindersForm" style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+      <div id="remindersBanner" class="notice" style="background:#fff1f2;border-left:4px solid #f43f5e;color:#881337">
+        <strong>Overdue Cases Follow-up</strong>
+        <p style="color:#9f1239;margin-top:4px" id="remindersBannerText">Dispatches official reminder notifications to
+          assigned departments for overdue cases.</p>
+      </div>
+      <div id="remindersListWrap"
+        style="max-height:220px;overflow-y:auto;border:1px solid #ffe4e6;border-radius:10px;padding:8px 12px;background:#fff">
+        <div id="remindersList" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+      <label style="margin-top:4px">Custom Reminder Note / Directive <small
+          style="font-weight:400;color:#666">(Optional)</small>
+        <textarea id="remindersNote" rows="3"
+          placeholder="Enter urgent instructions, priority escalation note, or target deadline..."></textarea>
+      </label>
+      <div class="dialog-actions">
+        <button type="button" class="secondary" id="cancelReminders">Cancel</button>
+        <button type="submit" class="danger-button" id="sendAllRemindersSubmitBtn"
+          style="background:linear-gradient(135deg,#e11d48,#be123c);color:#fff;border:0;padding:10px 18px;border-radius:10px;font-weight:700;cursor:pointer">✉
+          Dispatch All Reminders Now</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="profileDialog" class="profile-dialog">
+    <div class="dialog-head">
+      <div><span class="eyebrow">ACCOUNT SETTINGS</span>
+        <h2>Administrator profile</h2>
+        <p class="dialog-subtitle">Manage your staff account details and security.</p>
+      </div><button id="closeProfile" aria-label="Close">×</button>
+    </div>
+    <form id="profileForm" class="profile-form">
+      <div class="profile-summary">
+        <div class="profile-avatar" id="profileAvatar">SA</div>
+        <div><strong id="profileDisplayName">System Administrator</strong><span>Administrator access</span></div>
+      </div>
+      <div class="profile-section"><span class="profile-section-title">Personal details</span>
+        <div class="profile-grid"><label>Full name<input name="fullName" required /></label><label>Email address<input
+              name="email" type="email" required /></label><label class="profile-field-wide">Division<input
+              name="division" /></label></div>
+      </div>
+      <div class="profile-section"><span class="profile-section-title">Security</span><label>New password <small>Leave
+            blank to keep the current password</small><input name="password" type="password" minlength="8"
+            autocomplete="new-password" placeholder="Enter a new password" /></label></div><small id="profileError"
+        role="alert"></small>
+      <div class="dialog-actions"><button type="button" class="secondary" id="cancelProfile">Cancel</button><button
+          type="submit" class="primary">Save profile</button></div>
+    </form>
+  </dialog>
+  <dialog id="deleteDialog" class="delete-dialog">
+    <div class="delete-dialog-icon">!</div>
+    <h2>Delete grievance?</h2>
+    <p>This will permanently delete <strong id="deleteReference"></strong>. This action cannot be undone.</p>
+    <div class="dialog-actions"><button type="button" class="secondary" id="cancelDelete">Cancel</button><button
+        type="button" class="danger-button" id="confirmDelete">Delete grievance</button></div>
+  </dialog>
+  <div class="toast" id="toast"></div>
+  <script src="app.js"></script>
+  <script src="api-bridge.js"></script>
+</body>
+
+</html>
