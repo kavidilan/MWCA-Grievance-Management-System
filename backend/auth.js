@@ -40,6 +40,7 @@ function readToken(token) {
 async function ensureDefaultUsers() {
   const users = [
     ['System Administrator', 'admin@mwca.gov', 'Admin@123', 'ADMIN'],
+    ['Standard User', 'user@mwca.gov', 'User@123', 'USER'],
     ['Case Officer', 'officer@mwca.gov', 'Officer@123', 'OFFICER'],
     ['Case Reviewer', 'reviewer@mwca.gov', 'Reviewer@123', 'REVIEWER'],
     ['Read Only User', 'viewer@mwca.gov', 'Viewer@123', 'VIEWER']

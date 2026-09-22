@@ -225,14 +225,27 @@ const translations = {
   'Kalutara': 'කළුතර', 'Kandy': 'මහනුවර', 'Kegalle': 'කෑගල්ල', 'Kilinochchi': 'කිලිනොච්චි',
   'Kurunegala': 'කුරුණෑගල', 'Mannar': 'මන්නාරම', 'Matale': 'මාතලේ', 'Matara': 'මාතර', 'Monaragala': 'මොනරාගල',
   'Mullaitivu': 'මුලතිව්', 'Nuwara Eliya': 'නුවරඑළිය', 'Polonnaruwa': 'පොළොන්නරුව', 'Puttalam': 'පුත්තලම',
-  'Ratnapura': 'රත්නපුර', 'Trincomalee': 'ත්‍රිකුණාමලය', 'Vavuniya': 'වවුනියාව'
-  , 'Enter complainant full name': 'පැමිණිලිකරුගේ සම්පූර්ණ නම ඇතුළත් කරන්න', 'e.g. 199012345678': 'උදා: 199012345678',
+  'Ratnapura': 'රත්නපුර', 'Trincomalee': 'ත්‍රිකුණාමලය', 'Vavuniya': 'වවුනියාව',
   '07X XXX XXXX': '07X XXX XXXX', 'Enter address': 'ලිපිනය ඇතුළත් කරන්න', 'Type or select any custom department or ministry name (e.g. NCPA, Ministry of Health, Sri Lanka Police)': 'දෙපාර්තමේන්තුව හෝ අමාත්‍යාංශය ටයිප් කරන්න හෝ තෝරන්න',
   'e.g. info@childprotection.gov.lk or type custom email address': 'උදා: info@childprotection.gov.lk හෝ අභිරුචි විද්‍යුත් තැපෑලක් ඇතුළත් කරන්න',
   'Describe the grievance in detail': 'පැමිණිල්ලේ විස්තර ඇතුළත් කරන්න', 'Enter subject': 'විෂයය ඇතුළත් කරන්න',
   'Critical: Immediate threat or severe risk requiring emergency dispatch.': 'හදිසි: වහාම ක්‍රියාමාර්ග අවශ්‍ය අවදානම් තත්ත්වයකි.',
   'e.g., Request for urgent assistance regarding child welfare': 'උදා: ළමා සුබසාධනය සඳහා හදිසි සහාය ඉල්ලීම',
-  'Write full details of the grievance, requested relief, and context.': 'පැමිණිල්ල, ඉල්ලා සිටින සහනය සහ පසුබිම පිළිබඳ සම්පූර්ණ විස්තර ලියන්න.'
+  'Write full details of the grievance, requested relief, and context.': 'පැමිණිල්ල, ඉල්ලා සිටින සහනය සහ පසුබිම පිළිබඳ සම්පූර්ණ විස්තර ලියන්න.',
+  "Minister's Office": 'අමාත්‍ය කාර්යාලය',
+  'Secretary Office': 'ලේකම් කාර්යාලය',
+  'Financial': 'මුදල් අංශය',
+  'Development Branch': 'සංවර්ධන අංශය',
+  'Planning Division': 'ක්‍රමසම්පාදන අංශය',
+  'Child Secretariat Office': 'ළමා ලේකම් කාර්යාලය',
+  "Women's Bureau": 'කාන්තා කාර්යාංශය',
+  'National Commission On Women': 'කාන්තාවන් පිළිබඳ ජාතික කොමිෂන් සභාව',
+  'National Child Protection Authority': 'ජාතික ළමා ආරක්ෂක අධිකාරිය',
+  'Department of Probation and Child Care Service': 'පරිවාස හා ළමාරක්ෂක සේවා දෙපාර්තමේන්තුව',
+  'National Committee on Women': 'කාන්තාවන් පිළිබඳ ජාතික කමිටුව',
+  "Women's Bureau of Sri Lanka": 'ශ්‍රී ලංකා කාන්තා කාර්යාංශය',
+  'Department of Probation and Child Care Services': 'පරිවාස හා ළමාරක්ෂක සේවා දෙපාර්තමේන්තුව',
+  'National Secretariat for Early Childhood Development': 'මුල් ළමාවිය සංවර්ධනය පිළිබඳ ජාතික ලේකම් කාර්යාලය'
 };
 
 function applyLanguage(language = localStorage.getItem('wcaLanguage') || 'en') {
@@ -309,13 +322,53 @@ function isOverdue(c) {
   return Boolean(c.overdue || (c.dueAt && new Date(c.dueAt) < new Date() && !['Resolved', 'Closed'].includes(c.status)));
 }
 
+function updateHeaderDateTime() {
+  const pageSub = $('#pageSub');
+  const greetingEl = $('#welcomeGreeting');
+  const now = new Date();
+  const language = localStorage.getItem('wcaLanguage') || 'en';
+  const activePage = document.querySelector('.page.active')?.id?.replace('Page', '') || 'dashboard';
+
+  const optionsDate = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  const optionsTime = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+
+  const dateStr = now.toLocaleDateString(language === 'si' ? 'si-LK' : 'en-US', optionsDate);
+  const timeStr = now.toLocaleTimeString(language === 'si' ? 'si-LK' : 'en-US', optionsTime);
+
+  if (pageSub) {
+    if (activePage === 'dashboard') {
+      pageSub.innerHTML = `<span style="font-weight:600">${dateStr}</span> <span style="margin:0 6px;opacity:0.4">|</span> <span style="color:#2563eb;font-weight:700">${timeStr}</span>`;
+    }
+  }
+
+  if (greetingEl) {
+    const hours = now.getHours();
+    let timeGreeting = 'Good morning';
+    if (hours >= 12 && hours < 17) {
+      timeGreeting = 'Good afternoon';
+    } else if (hours >= 17) {
+      timeGreeting = 'Good evening';
+    }
+    const roleTitle = currentUser?.role === 'ADMIN' ? 'Admin Officer' : 'Grievance Officer';
+    greetingEl.textContent = `${timeGreeting}, MWCA ${roleTitle}`;
+  }
+}
+
+setInterval(updateHeaderDateTime, 1000);
+
 function showPage(page) {
   $$('.page').forEach(p => p.classList.remove('active'));
   $(`#${page}Page`).classList.add('active');
   $$('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === page));
   const language = localStorage.getItem('wcaLanguage') || 'en';
   $('#pageTitle').textContent = language === 'si' ? (translations[titles[page][0]] || titles[page][0]) : titles[page][0];
-  $('#pageSub').textContent = language === 'si' ? (translations[titles[page][1]] || titles[page][1]) : titles[page][1];
+  
+  if (page === 'dashboard') {
+    updateHeaderDateTime();
+  } else {
+    $('#pageSub').textContent = language === 'si' ? (translations[titles[page][1]] || titles[page][1]) : titles[page][1];
+  }
+
   $('#sidebar').classList.remove('open');
   window.scrollTo(0, 0);
   if (page === 'grievances') renderAll();
@@ -373,8 +426,12 @@ function autoSuggestDepartment() {
   }
 
   if (suggestedDept) {
-    deptEl.value = suggestedDept;
-    if (defaultDepartmentEmails[suggestedDept]) emailEl.value = defaultDepartmentEmails[suggestedDept];
+    const isSinhala = document.documentElement.lang === 'si';
+    const sinhalaName = translations[suggestedDept] || suggestedDept;
+    const deptVal = isSinhala ? sinhalaName : `${sinhalaName} (${suggestedDept})`;
+    deptEl.value = deptVal;
+    const defaultEmails = getDepartmentDefaultEmails(suggestedDept);
+    if (defaultEmails) emailEl.value = defaultEmails;
   }
 }
 
@@ -404,8 +461,46 @@ function row(c) {
   </tr>`;
 }
 
+async function deleteGrievance(id, ref) {
+  const g = cases.find(c => c.id == id || c.ref === ref || c.ref === id);
+  const targetRef = g ? g.ref : (ref || id);
+  const targetId = g ? g.id : id;
+
+  if (!confirm(`Are you sure you want to delete grievance ${targetRef}? This action cannot be undone.`)) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/${targetId}`, {
+      method: 'DELETE',
+      headers: typeof authHeaders === 'function' ? authHeaders() : { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok && res.status !== 204) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to delete grievance');
+    }
+    cases = cases.filter(c => c.id != targetId && c.ref !== targetRef);
+    if (typeof save === 'function') save();
+    if (typeof renderRecent === 'function') renderRecent();
+    if (typeof renderAll === 'function') renderAll();
+    if (typeof renderKanban === 'function') renderKanban();
+    notify(`Grievance ${targetRef} deleted successfully.`);
+  } catch (error) {
+    notify(`Delete error: ${error.message}`);
+  }
+}
+
 function bindRows() {
-  $$('tbody tr[data-ref], .case-card[data-ref]').forEach(r => r.onclick = () => openCase(r.dataset.ref));
+  $$('tbody tr[data-ref], .case-card[data-ref]').forEach(r => {
+    r.onclick = (e) => {
+      if (e.target.closest('.btn-delete')) return;
+      openCase(r.dataset.ref);
+    };
+  });
+  $$('.btn-delete').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      deleteGrievance(btn.dataset.id, btn.dataset.ref);
+    };
+  });
 }
 
 function renderRecent() {
@@ -436,7 +531,11 @@ function filteredCases() {
     if (category !== 'all' && c.category !== category) return false;
     if (subcategory !== 'all' && c.subcategory !== subcategory) return false;
     if (department !== 'all' && c.assigned !== department) return false;
-    if (status !== 'all' && c.status !== status) return false;
+    if (status === 'Overdue') {
+      if (!isOverdue(c)) return false;
+    } else if (status !== 'all' && c.status !== status) {
+      return false;
+    }
     if (priority !== 'all' && (c.priority || 'Normal') !== priority) return false;
     if (q) {
       const text = [c.ref, c.name, c.subject, c.source, c.category, c.subcategory, c.assigned, c.description, c.priority].join(' ').toLowerCase();
@@ -465,16 +564,15 @@ function renderAll() {
     <td>${esc(c.name)}</td>
     <td>${esc(c.assigned || 'Unassigned')}</td>
     <td>${esc(c.actionTaken || 'Pending review')}<br><small style="color:#555">${esc(c.actionDate || 'Not recorded')}</small></td>
-    <td>›</td>
-  </tr>`).join('') || '<tr><td colspan="9">No matching grievances found.</td></tr>';
+  </tr>`).join('') || '<tr><td colspan="8">No matching grievances found.</td></tr>';
 
   const labels = [];
-  if (overdueOnly) labels.push('Overdue grievances');
+  if (overdueOnly || s === 'Overdue') labels.push('Overdue grievances');
   if (source !== 'all') labels.push(`Source: ${source}`);
   if (cat !== 'all') labels.push(`Category: ${cat}`);
   if (subcat !== 'all') labels.push(`Subcategory: ${subcat}`);
   if (dept !== 'all') labels.push(`Department: ${dept}`);
-  if (s !== 'all') labels.push(`Status: ${s}`);
+  if (s !== 'all' && s !== 'Overdue') labels.push(`Status: ${s}`);
   if (p !== 'all') labels.push(`Priority: ${p}`);
   if (q) labels.push(`Search: ${q}`);
 
@@ -492,7 +590,7 @@ function renderAll() {
 });
 
 function drill({ status = 'all', category = 'all', source = 'all', department = 'all', subcategory = 'all', search = '', priority = 'all' }) {
-  overdueOnly = false;
+  overdueOnly = (status === 'Overdue' || status === 'overdue');
   if ($('#statusFilter')) $('#statusFilter').value = status;
   if ($('#priorityFilter')) $('#priorityFilter').value = priority;
   if ($('#categoryFilter')) {
@@ -520,8 +618,7 @@ if ($('#clearFilters')) $('#clearFilters').onclick = () => drill({});
 
 if ($('#overdueCard')) $('#overdueCard').onclick = (e) => {
   if (e.target.closest('#sendOfficeRemindersBtn')) return;
-  overdueOnly = true;
-  showPage('grievances');
+  drill({ status: 'Overdue' });
 };
 
 function openRemindersDialog(e) {
@@ -554,7 +651,10 @@ function openRemindersDialog(e) {
 
 const sendOfficeRemindersBtn = $('#sendOfficeRemindersBtn');
 if (sendOfficeRemindersBtn) {
-  sendOfficeRemindersBtn.onclick = openRemindersDialog;
+  sendOfficeRemindersBtn.onclick = (e) => {
+    if (e) e.stopPropagation();
+    openRemindersDialog(e);
+  };
 }
 
 if ($('#closeRemindersDialog')) $('#closeRemindersDialog').onclick = () => $('#remindersDialog').close();
@@ -639,22 +739,55 @@ function renderKanban() {
 }
 
 const defaultDepartmentEmails = {
-  "Minister's Office": 'minister@mwca.gov.lk',
-  'Secretary Office': 'secretary@mwca.gov.lk',
-  'Financial': 'finance@mwca.gov.lk',
+  "Minister's Office": 'minister@mwca.gov.lk, sec.minister@mwca.gov.lk',
+  'Secretary Office': 'secretary@mwca.gov.lk, addlsec@mwca.gov.lk',
+  'Financial': 'finance@mwca.gov.lk, accounts@mwca.gov.lk',
   'Development Branch': 'development@mwca.gov.lk',
   'Planning Division': 'planning@mwca.gov.lk',
-  'Child Secretariat Office': 'childsecretariat@mwca.gov.lk',
-  "Women's Bureau": 'info@womensbureau.gov.lk',
+  'Child Secretariat Office': 'childsecretariat@mwca.gov.lk, info@childsecretariat.gov.lk',
+  "Women's Bureau": 'info@womensbureau.gov.lk, director@womensbureau.gov.lk',
   'National Commission On Women': 'ncw@womenaffairs.gov.lk',
-  'National Child Protection Authority': 'info@childprotection.gov.lk',
-  'Department of Probation and Child Care Service': 'probation@childcare.gov.lk'
+  'National Child Protection Authority': 'info@childprotection.gov.lk, ncpa.help@childprotection.gov.lk',
+  'Department of Probation and Child Care Service': 'probation@childcare.gov.lk, info@childcare.gov.lk',
+
+  'අමාත්‍ය කාර්යාලය': 'minister@mwca.gov.lk, sec.minister@mwca.gov.lk',
+  'අමාත්‍ය කාර්යාලය (Minister\'s Office)': 'minister@mwca.gov.lk, sec.minister@mwca.gov.lk',
+  'ලේකම් කාර්යාලය': 'secretary@mwca.gov.lk, addlsec@mwca.gov.lk',
+  'ලේකම් කාර්යාලය (Secretary Office)': 'secretary@mwca.gov.lk, addlsec@mwca.gov.lk',
+  'මුදල් අංශය': 'finance@mwca.gov.lk, accounts@mwca.gov.lk',
+  'මුදල් අංශය (Financial)': 'finance@mwca.gov.lk, accounts@mwca.gov.lk',
+  'සංවර්ධන අංශය': 'development@mwca.gov.lk',
+  'සංවර්ධන අංශය (Development Branch)': 'development@mwca.gov.lk',
+  'ක්‍රමසම්පාදන අංශය': 'planning@mwca.gov.lk',
+  'ක්‍රමසම්පාදන අංශය (Planning Division)': 'planning@mwca.gov.lk',
+  'ළමා ලේකම් කාර්යාලය': 'childsecretariat@mwca.gov.lk, info@childsecretariat.gov.lk',
+  'ළමා ලේකම් කාර්යාලය (Child Secretariat Office)': 'childsecretariat@mwca.gov.lk, info@childsecretariat.gov.lk',
+  'කාන්තා කාර්යාංශය': 'info@womensbureau.gov.lk, director@womensbureau.gov.lk',
+  'කාන්තා කාර්යාංශය (Women\'s Bureau)': 'info@womensbureau.gov.lk, director@womensbureau.gov.lk',
+  'කාන්තාවන් පිළිබඳ ජාතික කොමිෂන් සභාව': 'ncw@womenaffairs.gov.lk',
+  'කාන්තාවන් පිළිබඳ ජාතික කොමිෂන් සභාව (National Commission On Women)': 'ncw@womenaffairs.gov.lk',
+  'ජාතික ළමා ආරක්ෂක අධිකාරිය': 'info@childprotection.gov.lk, ncpa.help@childprotection.gov.lk',
+  'ජාතික ළමා ආරක්ෂක අධිකාරිය (National Child Protection Authority)': 'info@childprotection.gov.lk, ncpa.help@childprotection.gov.lk',
+  'පරිවාස හා ළමාරක්ෂක සේවා දෙපාර්තමේන්තුව': 'probation@childcare.gov.lk, info@childcare.gov.lk',
+  'පරිවාස හා ළමාරක්ෂක සේවා දෙපාර්තමේන්තුව (Department of Probation and Child Care Service)': 'probation@childcare.gov.lk, info@childcare.gov.lk'
 };
 
 let currentUploadedAttachments = [];
 let attachmentReadPromise = Promise.resolve();
 
-// Dynamic department email autofill helper
+// Dynamic department email autofill helper supporting multiple recipient emails
+function getDepartmentDefaultEmails(deptName) {
+  if (!deptName) return '';
+  const trimmed = deptName.trim();
+  if (defaultDepartmentEmails[trimmed]) return defaultDepartmentEmails[trimmed];
+  for (const [key, email] of Object.entries(defaultDepartmentEmails)) {
+    if (trimmed.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(trimmed.toLowerCase())) {
+      return email;
+    }
+  }
+  return '';
+}
+
 function bindDepartmentEmailAutofill(deptSelectId, emailInputId) {
   const deptEl = $(`#${deptSelectId}`);
   const emailEl = $(`#${emailInputId}`);
@@ -662,8 +795,21 @@ function bindDepartmentEmailAutofill(deptSelectId, emailInputId) {
 
   const update = () => {
     const selectedDept = deptEl.value.trim();
-    if (defaultDepartmentEmails[selectedDept]) {
-      emailEl.value = defaultDepartmentEmails[selectedDept];
+    const defaultEmail = getDepartmentDefaultEmails(selectedDept);
+    if (defaultEmail) {
+      const currentVal = emailEl.value.trim();
+      if (!currentVal) {
+        emailEl.value = defaultEmail;
+      } else {
+        const existingEmails = currentVal.split(/[;,\n]/).map(e => e.trim()).filter(Boolean);
+        const newEmails = defaultEmail.split(/[;,\n]/).map(e => e.trim()).filter(Boolean);
+        newEmails.forEach(e => {
+          if (!existingEmails.includes(e)) {
+            existingEmails.push(e);
+          }
+        });
+        emailEl.value = existingEmails.join(', ');
+      }
     }
   };
 
@@ -671,10 +817,56 @@ function bindDepartmentEmailAutofill(deptSelectId, emailInputId) {
   deptEl.addEventListener('input', update);
 }
 
+function attachQuickEmailPills(emailInputId, containerId) {
+  const emailInput = $(`#${emailInputId}`);
+  const container = $(`#${containerId}`);
+  if (!emailInput || !container) return;
+
+  const quickDepts = [
+    { label: "Minister", email: 'minister@mwca.gov.lk' },
+    { label: "Secretary", email: 'secretary@mwca.gov.lk' },
+    { label: "NCPA", email: 'info@childprotection.gov.lk' },
+    { label: "Women's Bureau", email: 'info@womensbureau.gov.lk' },
+    { label: "Probation & Child Care", email: 'probation@childcare.gov.lk' },
+    { label: "Financial", email: 'finance@mwca.gov.lk' }
+  ];
+
+  container.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center;">
+      <span style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:0.4px">ADD RECIPIENTS:</span>
+      ${quickDepts.map(d => `
+        <button type="button" class="quick-email-pill" data-email="${d.email}" style="font-size:11px;padding:3px 8px;background:#f0f4ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:12px;cursor:pointer;font-weight:600" title="Click to add ${d.email}">+ ${d.label}</button>
+      `).join('')}
+    </div>
+  `;
+
+  container.querySelectorAll('.quick-email-pill').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      const emailToAdd = btn.dataset.email;
+      const currentVal = emailInput.value.trim();
+      if (!currentVal) {
+        emailInput.value = emailToAdd;
+      } else {
+        const existingEmails = currentVal.split(/[;,\n]/).map(x => x.trim()).filter(Boolean);
+        if (!existingEmails.includes(emailToAdd)) {
+          existingEmails.push(emailToAdd);
+        }
+        emailInput.value = existingEmails.join(', ');
+      }
+    };
+  });
+}
+
 bindDepartmentEmailAutofill('regDepartment', 'regRecipientEmail');
 bindDepartmentEmailAutofill('dialogAssignee', 'dialogRecipientEmail');
 bindDepartmentEmailAutofill('emailTargetDept', 'emailTargetAddr');
 bindDepartmentEmailAutofill('deptSummaryTargetDept', 'deptSummaryRecipientEmails');
+
+attachQuickEmailPills('regRecipientEmail', 'regQuickEmailContainer');
+attachQuickEmailPills('dialogRecipientEmail', 'dialogQuickContainer');
+attachQuickEmailPills('emailTargetAddr', 'emailQuickContainer');
+attachQuickEmailPills('deptSummaryRecipientEmails', 'deptSummaryQuickContainer');
 
 function renderRegistrationAttachments() {
   const noticeEl = $('#attachmentFileNotice');
@@ -743,6 +935,23 @@ if (regAttachmentFileEl) {
   });
 }
 
+// Target deadline selection change listener
+if ($('#regDeadlineDays')) {
+  $('#regDeadlineDays').onchange = (e) => {
+    const isCustom = e.target.value === 'custom';
+    if ($('#customDueDateLabel')) $('#customDueDateLabel').style.display = isCustom ? 'block' : 'none';
+    if (isCustom && $('#regDueDate') && !$('#regDueDate').value) {
+      const rec = $('#regDate')?.value ? new Date($('#regDate').value) : new Date();
+      rec.setDate(rec.getDate() + 7);
+      $('#regDueDate').value = rec.toISOString().slice(0, 10);
+    }
+  };
+}
+
+if ($('#regDate') && !$('#regDate').value) {
+  $('#regDate').value = new Date().toISOString().slice(0, 10);
+}
+
 function openCase(ref) {
   selected = cases.find(c => c.ref === ref);
   if (!selected) return;
@@ -751,6 +960,21 @@ function openCase(ref) {
   $('#dialogPriority').value = selected.priority || 'Normal';
   $('#dialogAssignee').value = selected.assigned === 'Unassigned' ? '' : selected.assigned || '';
   if ($('#sendReminderBtn')) $('#sendReminderBtn').hidden = !isOverdue(selected);
+
+  if ($('#dialogDueDate')) {
+    if (selected.dueAt) {
+      try {
+        const d = new Date(selected.dueAt);
+        if (!isNaN(d.getTime())) {
+          $('#dialogDueDate').value = d.toISOString().slice(0, 10);
+        }
+      } catch (e) {
+        $('#dialogDueDate').value = '';
+      }
+    } else {
+      $('#dialogDueDate').value = '';
+    }
+  }
 
   const defaultEmail = selected.recipientEmail || defaultDepartmentEmails[selected.assigned] || '';
   if ($('#dialogRecipientEmail')) $('#dialogRecipientEmail').value = defaultEmail;
@@ -769,6 +993,8 @@ function openCase(ref) {
     container.innerHTML = selected.attachments.map((att, idx) => {
       const isImg = att.contentType?.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(att.name);
       const icon = isImg ? '🖼️' : (att.name?.endsWith('.pdf') ? '📕' : '📄');
+      const isAdmin = currentUser?.role === 'ADMIN';
+      const removeBtnHtml = isAdmin ? `<button type="button" class="remove-case-att-btn" data-idx="${idx}" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:4px;padding:2px 8px;font-size:0.75rem;font-weight:bold;cursor:pointer" title="Remove file from case">✕ Remove</button>` : '';
       return `
         <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:6px;font-size:0.85rem">
           <div style="display:flex;align-items:center;gap:6px">
@@ -776,7 +1002,7 @@ function openCase(ref) {
             <a href="${esc(att.dataUrl || '#')}" download="${esc(att.name)}" target="_blank" style="color:#2563eb;text-decoration:underline;font-weight:600">${esc(att.name)}</a>
             <small style="color:#64748b">(${esc(att.size || 'N/A')})</small>
           </div>
-          <button type="button" class="remove-case-att-btn" data-idx="${idx}" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:4px;padding:2px 8px;font-size:0.75rem;font-weight:bold;cursor:pointer" title="Remove file from case">✕ Remove</button>
+          ${removeBtnHtml}
         </div>
       `;
     }).join('');
@@ -797,6 +1023,18 @@ function openCase(ref) {
   const addressInfoHtml = selected.address ? `<div><span>Address</span><strong>${esc(selected.address)}</strong></div>` : '';
   const districtInfoHtml = selected.district ? `<div><span>District</span><strong>${esc(selected.district)}</strong></div>` : '';
 
+  const dueBadge = isOverdue(selected)
+    ? `<span class="badge awaiting-review" style="background:#ffe4e6;color:#e11d48;font-size:10px;margin-left:6px;padding:2px 6px">OVERDUE</span>`
+    : `<span class="badge" style="background:#e0f2fe;color:#0369a1;font-size:10px;margin-left:6px;padding:2px 6px">On Track</span>`;
+  const dueInfoHtml = `<div><span>Target Resolution Deadline</span><strong>${esc(selected.due || 'Not set')} ${dueBadge}</strong></div>`;
+
+  const isAdmin = currentUser?.role === 'ADMIN';
+  const attachControlHtml = isAdmin ? `
+        <label style="color:#2563eb;font-size:0.83rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px">
+          ＋ Attach / Re-upload File
+          <input type="file" id="dialogAddAttachmentFile" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" multiple style="display:none" />
+        </label>` : '';
+
   $('#dialogContent').innerHTML = `<div class="dialog-info">
     <div><span>Complainant</span><strong>${esc(selected.name)}</strong></div>
     ${addressInfoHtml}
@@ -807,15 +1045,13 @@ function openCase(ref) {
     <div><span>Assigned Department</span><strong>${esc(selected.assigned || 'Unassigned')}</strong></div>
     ${emailInfoHtml}
     <div><span>Current Priority</span><strong>${priorityBadge(selected.priority)}</strong></div>
+    ${dueInfoHtml}
     <div class="wide"><span>Subject</span><strong>${esc(selected.subject)}</strong></div>
     <div class="wide"><span>Case Summary & Details</span><strong>${esc(selected.description)}</strong></div>
     <div class="wide" style="grid-column: span 2;background:#f8fafc;padding:12px;border-radius:8px;border:1px solid #e2e8f0;margin-top:6px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <strong style="color:#1e1b4b;font-size:0.88rem">📎 Attached Documents / Letters</strong>
-        <label style="color:#2563eb;font-size:0.83rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px">
-          ＋ Attach / Re-upload File
-          <input type="file" id="dialogAddAttachmentFile" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" multiple style="display:none" />
-        </label>
+        ${attachControlHtml}
       </div>
       <div id="dialogAttachmentList"></div>
     </div>
@@ -851,6 +1087,7 @@ function openCase(ref) {
     };
   }
 
+  if (currentUser) setUser(currentUser);
   $('#caseDialog').showModal();
 }
 
@@ -872,7 +1109,7 @@ if (sendEmailBtn) {
 
     $('#emailTargetDept').value = targetDept;
     $('#emailTargetAddr').value = targetEmail;
-    $('#emailSubject').value = `[MWCA Grievance Referral] ${selected.ref} - ${selected.subject}`;
+    $('#emailSubject').value = `[MWCA Grievance Referral] ${selected.ref} – ${selected.subcategory || selected.subject}`;
     $('#emailNote').value = `Please assess and process official MWCA grievance ${selected.ref} regarding ${selected.subject}.`;
 
     const attachNotice = $('#emailAttachmentNotice');
@@ -896,7 +1133,7 @@ if ($('#sendReminderBtn')) $('#sendReminderBtn').onclick = () => {
   }
   $('#emailTargetDept').value = targetDept;
   $('#emailTargetAddr').value = targetEmail;
-  $('#emailSubject').value = `[MWCA Overdue Reminder] ${selected.ref} - ${selected.subject}`;
+  $('#emailSubject').value = `[MWCA Overdue Reminder] ${selected.ref} – ${selected.subcategory || selected.subject}`;
   $('#emailNote').value = `Reminder: grievance ${selected.ref} is overdue. Please provide an action update to MWCA.`;
   $('#emailDialog').showModal();
 };
@@ -1169,15 +1406,40 @@ if (deptSummaryForm) {
   };
 }
 
+function animateCounter(el, target) {
+  if (!el) return;
+  const targetVal = Number(target) || 0;
+  const startVal = parseInt(el.textContent, 10);
+  if (isNaN(startVal) || startVal === targetVal) {
+    el.textContent = targetVal;
+    return;
+  }
+  const duration = 350;
+  const startTime = performance.now();
+  function update(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const easeProgress = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(startVal + (targetVal - startVal) * easeProgress);
+    el.textContent = current;
+    if (progress < 1) {
+      requestAnimationFrame(update);
+    } else {
+      el.textContent = targetVal;
+    }
+  }
+  requestAnimationFrame(update);
+}
+
 function save() {
   localStorage.setItem('wcaCases', JSON.stringify(cases));
-  $('#navCount').textContent = cases.length;
-  $('#totalStat').textContent = cases.length;
-  $('#awaitingStat').textContent = cases.filter(c => c.status === 'Awaiting Review').length;
-  $('#forwardedStat').textContent = cases.filter(c => c.status === 'Forwarded' || c.status === 'Assigned').length;
-  $('#resolvedStat').textContent = cases.filter(c => c.status === 'Resolved').length;
-  if ($('#overdueStat')) $('#overdueStat').textContent = cases.filter(isOverdue).length;
-  if ($('#donutTotal')) $('#donutTotal').textContent = cases.length;
+  if ($('#navCount')) $('#navCount').textContent = cases.length;
+  animateCounter($('#totalStat'), cases.length);
+  animateCounter($('#awaitingStat'), cases.filter(c => c.status === 'Awaiting Review').length);
+  animateCounter($('#forwardedStat'), cases.filter(c => c.status === 'Forwarded' || c.status === 'Assigned').length);
+  animateCounter($('#resolvedStat'), cases.filter(c => c.status === 'Resolved').length);
+  if ($('#overdueStat')) animateCounter($('#overdueStat'), cases.filter(isOverdue).length);
+  if ($('#donutTotal')) animateCounter($('#donutTotal'), cases.length);
 
   const total = cases.length || 1;
   const womenCount = cases.filter(c => c.category === 'Women').length;
@@ -1204,6 +1466,17 @@ function save() {
 
 function parseCaseDate(value) {
   if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'string' && value.includes('/')) {
+    const parts = value.split('/');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }
@@ -1213,8 +1486,7 @@ function updateActivityChart() {
   const monthsEl = document.querySelector('.months');
   if (!chart || !monthsEl) return;
 
-  const now = new Date();
-  now.setDate(1);
+  const now = new Date(2026, 8, 1); // Sept 2026 anchor
   const months = Array.from({ length: 6 }, (_, index) => {
     const date = new Date(now.getFullYear(), now.getMonth() - 5 + index, 1);
     return {
@@ -1226,16 +1498,27 @@ function updateActivityChart() {
   });
 
   for (const grievance of cases) {
-    const receivedDate = parseCaseDate(grievance.receivedAt || grievance.received);
-    const resolvedDate = parseCaseDate(grievance.resolvedAt);
+    const receivedDate = parseCaseDate(grievance.receivedAt || grievance.received_at || grievance.received);
+    const resolvedDate = parseCaseDate(grievance.resolvedAt || grievance.closed_at || grievance.closedAt);
     for (const month of months) {
-      if (receivedDate && receivedDate.getFullYear() === month.date.getFullYear() && receivedDate.getMonth() === month.date.getMonth()) month.received += 1;
-      if (resolvedDate && resolvedDate.getFullYear() === month.date.getFullYear() && resolvedDate.getMonth() === month.date.getMonth()) month.resolved += 1;
+      if (receivedDate && receivedDate.getFullYear() === month.date.getFullYear() && receivedDate.getMonth() === month.date.getMonth()) {
+        month.received += 1;
+      }
+      if (resolvedDate && resolvedDate.getFullYear() === month.date.getFullYear() && resolvedDate.getMonth() === month.date.getMonth()) {
+        month.resolved += 1;
+      }
     }
   }
 
   const maximum = Math.max(1, ...months.flatMap(month => [month.received, month.resolved]));
-  chart.innerHTML = months.map(month => `<div class="bar-pair" title="${month.label}: ${month.received} received, ${month.resolved} resolved"><i class="bar purple" style="height:${(month.received / maximum) * 100}%"></i><i class="bar teal" style="height:${(month.resolved / maximum) * 100}%"></i></div>`).join('');
+  chart.innerHTML = months.map(month => {
+    const recPct = month.received > 0 ? Math.max(8, Math.round((month.received / maximum) * 100)) : 0;
+    const resPct = month.resolved > 0 ? Math.max(8, Math.round((month.resolved / maximum) * 100)) : 0;
+    return `<div class="bar-pair" title="${month.label} 2026: ${month.received} Received, ${month.resolved} Resolved">
+      <i class="bar purple" style="height:${recPct}%" data-val="${month.received}"></i>
+      <i class="bar teal" style="height:${resPct}%" data-val="${month.resolved}"></i>
+    </div>`;
+  }).join('');
   monthsEl.innerHTML = months.map(month => `<span>${month.label}</span>`).join('');
 }
 
@@ -1287,4 +1570,5 @@ renderKanban();
 renderReports();
 save();
 applyLanguage();
+updateHeaderDateTime();
 

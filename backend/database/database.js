@@ -49,6 +49,7 @@ async function initializeDatabase() {
     db.exec("UPDATE grievances SET category = 'Child', subcategory = 'Child Protection & Safety' WHERE category = 'Child Protection'");
     db.exec("UPDATE grievances SET category = 'Women', subcategory = 'Abuse / Domestic Violence' WHERE category = 'Women’s Welfare'");
     db.exec("UPDATE grievances SET category = 'General / Other', subcategory = 'General Inquiry' WHERE category IN ('Other', 'Financial Assistance')");
+    db.exec("UPDATE grievances SET due_at = datetime(received_at, '+7 days') WHERE due_at IS NULL OR due_at = received_at OR due_at = created_at");
   } catch (err) {
     // Migration ignore
   }

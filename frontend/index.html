@@ -15,39 +15,45 @@
 <body>
   <section class="login-screen" id="loginScreen">
     <div class="login-card">
-      <div class="brand"><img class="brand-logo" src="ministry-logo.jpg" alt="Ministry of Women and Child Affairs" />
+      <div class="brand"><img class="brand-logo" src="assets/image (2).jpg"
+          onerror="this.onerror=null;this.src='assets/images.png';" alt="Ministry of Women and Child Affairs" />
       </div>
       <span class="eyebrow">SECURE STAFF ACCESS</span>
       <h1>Sign in to the grievance workspace</h1>
       <p>Use your ministry account to review, manage and track grievance records. Your access depends on your assigned
         role.</p>
-      <form id="loginForm">
-        <label>Email address<input type="email" name="email" id="loginEmail" value="admin@mwca.gov"
+      <form id="loginForm" novalidate>
+        <label>Email address<input type="text" name="email" id="loginEmail" placeholder="admin@mwca.gov"
             autocomplete="username" required /></label>
-        <label>Password<input type="password" name="password" id="loginPassword" value="Admin@123"
+        <label>Password<input type="password" name="password" id="loginPassword" placeholder="••••••••"
             autocomplete="current-password" required /></label>
-        <button class="primary" type="submit">Sign in</button>
+        <button class="primary" type="submit" id="signInSubmitBtn">Sign in</button>
         <small id="loginError" role="alert"></small>
       </form>
       <div class="demo-accounts" style="margin-top:16px;padding-top:14px;border-top:1px solid #e2e5ef">
         <span style="font-size:11px;font-weight:700;color:#68708a;display:block;margin-bottom:8px">DEMO QUICK
-          ACCESS:</span>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          LOGIN:</span>
+        <div style="display:flex;flex-direction:column;gap:8px">
           <button type="button" class="demo-btn" data-email="admin@mwca.gov" data-pass="Admin@123"
-            style="font-size:11px;padding:4px 8px;background:#eeeafd;color:#5546c2;border:1px solid #d0c8f8;border-radius:6px;cursor:pointer">Admin</button>
-          <button type="button" class="demo-btn" data-email="officer@mwca.gov" data-pass="Officer@123"
-            style="font-size:11px;padding:4px 8px;background:#f0f1f5;color:#333;border:1px solid #ddd;border-radius:6px;cursor:pointer">Officer</button>
-          <button type="button" class="demo-btn" data-email="reviewer@mwca.gov" data-pass="Reviewer@123"
-            style="font-size:11px;padding:4px 8px;background:#f0f1f5;color:#333;border:1px solid #ddd;border-radius:6px;cursor:pointer">Reviewer</button>
-          <button type="button" class="demo-btn" data-email="viewer@mwca.gov" data-pass="Viewer@123"
-            style="font-size:11px;padding:4px 8px;background:#f0f1f5;color:#333;border:1px solid #ddd;border-radius:6px;cursor:pointer">Viewer</button>
+            style="font-size:12px;padding:8px 12px;background:#eeeafd;color:#5546c2;border:1px solid #d0c8f8;border-radius:8px;cursor:pointer;text-align:left;font-weight:600;display:flex;align-items:center;justify-content:space-between"
+            title="Click to sign in as Admin">
+            <span>🔑 <strong>Admin Account:</strong> admin@mwca.gov</span>
+            <span style="opacity:0.75;font-size:11px;font-weight:500">Admin@123</span>
+          </button>
+          <button type="button" class="demo-btn" data-email="user@mwca.gov" data-pass="User@123"
+            style="font-size:12px;padding:8px 12px;background:#f0f4ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:8px;cursor:pointer;text-align:left;font-weight:600;display:flex;align-items:center;justify-content:space-between"
+            title="Click to sign in as User">
+            <span>👤 <strong>User Account:</strong> user@mwca.gov</span>
+            <span style="opacity:0.75;font-size:11px;font-weight:500">User@123</span>
+          </button>
         </div>
       </div>
     </div>
   </section>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
-      <div class="brand"><img class="brand-logo" src="ministry-logo.jpg" alt="Ministry of Women and Child Affairs" />
+      <div class="brand"><img class="brand-logo" src="assets/image (2).jpg"
+          onerror="this.onerror=null;this.src='assets/images.png';" alt="Ministry of Women and Child Affairs" />
       </div>
       <nav id="nav">
         <span class="nav-label">Workspace</span>
@@ -66,8 +72,7 @@
       </nav>
       <div class="sidebar-foot">
         <div class="shield">✓</div>
-        <div><strong>Secure workspace</strong><small>Audit logging enabled</small></div><span class="status-dot"
-          aria-label="System secure"></span>
+        <div><strong>Secure workspace</strong></div><span class="status-dot" aria-label="System secure"></span>
       </div>
     </aside>
 
@@ -76,7 +81,112 @@
         <button class="menu" id="menu" aria-label="Open navigation">☰</button>
         <div class="title">
           <h1 id="pageTitle">Grievance Overview</h1>
-          <p id="pageSub">Monday, 7 September 2026</p>
+          <p id="pageSub"></p>
+        </div>
+        <!-- Ministry Animated Header Visual Scene -->
+        <div class="header-scene" aria-hidden="true">
+          <svg class="header-scene-svg" viewBox="0 0 480 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Background Decorative Soft Field Waves -->
+            <path d="M0 48C60 42 120 54 180 47C240 40 300 52 360 46C420 40 460 46 480 48V60H0V48Z" fill="#6758d8"
+              fill-opacity="0.06" />
+            <path d="M0 52C80 48 160 55 240 49C320 43 400 53 480 49V60H0V52Z" fill="#2f9d75" fill-opacity="0.06" />
+
+            <!-- SECTION 1: Woman with Child (Walking Hand-in-Hand) -->
+            <g class="scene-mother-child">
+              <!-- Woman Silhouette -->
+              <circle cx="85" cy="18" r="4.5" fill="#5546c2" />
+              <circle cx="81.5" cy="17.5" r="2.5" fill="#3b2d9a" />
+              <path d="M81 25C81 23.5 82.5 22.5 85 22.5C87.5 22.5 89 23.5 89 25L91.5 42H78.5L81 25Z" fill="#6758d8" />
+              <line x1="82" y1="42" x2="81" y2="52" stroke="#4f46e5" stroke-width="2" stroke-linecap="round"
+                class="scene-leg-left" />
+              <line x1="88" y1="42" x2="89" y2="52" stroke="#4f46e5" stroke-width="2" stroke-linecap="round"
+                class="scene-leg-right" />
+              <path d="M88 25L96 34" stroke="#5546c2" stroke-width="2" stroke-linecap="round" />
+
+              <!-- Child Silhouette -->
+              <circle cx="102" cy="27" r="3.5" fill="#0284c7" />
+              <path d="M99 33C99 31.8 100.2 31 102 31C103.8 31 105 31.8 105 33L106.5 45H97.5L99 33Z" fill="#0ea5e9" />
+              <path d="M99 33L96 34" stroke="#0284c7" stroke-width="1.8" stroke-linecap="round" />
+              <line x1="100" y1="45" x2="99.5" y2="52" stroke="#0369a1" stroke-width="1.8" stroke-linecap="round" />
+              <line x1="104" y1="45" x2="104.5" y2="52" stroke="#0369a1" stroke-width="1.8" stroke-linecap="round" />
+            </g>
+
+            <!-- Tree Accent -->
+            <g class="scene-tree">
+              <path d="M160 52V38" stroke="#15803d" stroke-width="2" stroke-linecap="round" />
+              <circle cx="160" cy="33" r="7.5" fill="#2f9d75" fill-opacity="0.3" />
+              <circle cx="156" cy="30" r="5.5" fill="#10b981" fill-opacity="0.35" />
+              <circle cx="164" cy="31" r="5" fill="#059669" fill-opacity="0.35" />
+            </g>
+
+            <!-- SECTION 2: Children Running & Playing Football -->
+            <g class="scene-football-group">
+              <!-- Child 1 Running (Behind) -->
+              <g class="scene-child-runner-1">
+                <circle cx="195" cy="26" r="3.5" fill="#2563eb" />
+                <path d="M192 32C192 30.8 193.2 30 195 30C196.8 30 198 30.8 198 32L199.5 43H190.5L192 32Z"
+                  fill="#3b82f6" />
+                <path d="M193 32L187 36" stroke="#1d4ed8" stroke-width="1.8" stroke-linecap="round" />
+                <path d="M197 32L203 35" stroke="#1d4ed8" stroke-width="1.8" stroke-linecap="round" />
+                <line x1="192" y1="43" x2="187" y2="50" stroke="#1d4ed8" stroke-width="1.8" stroke-linecap="round"
+                  class="scene-run-leg-1" />
+                <line x1="197" y1="43" x2="203" y2="49" stroke="#1d4ed8" stroke-width="1.8" stroke-linecap="round"
+                  class="scene-run-leg-2" />
+              </g>
+
+              <!-- Child 2 Kicking/Running towards ball -->
+              <g class="scene-child-runner-2">
+                <circle cx="225" cy="25" r="3.5" fill="#059669" />
+                <path d="M222 31C222 29.8 223.2 29 225 29C226.8 29 228 29.8 228 31L229.5 42H220.5L222 31Z"
+                  fill="#10b981" />
+                <path d="M227 31L233 34" stroke="#047857" stroke-width="1.8" stroke-linecap="round" />
+                <line x1="222" y1="42" x2="217" y2="49" stroke="#047857" stroke-width="1.8" stroke-linecap="round"
+                  class="scene-kick-leg-1" />
+                <line x1="227" y1="42" x2="235" y2="45" stroke="#047857" stroke-width="2" stroke-linecap="round"
+                  class="scene-kick-leg-2" />
+              </g>
+
+              <!-- Rolling/Bouncing Football -->
+              <g class="scene-football">
+                <circle cx="242" cy="46" r="4.5" fill="#ffffff" stroke="#1e293b" stroke-width="1.2" />
+                <polygon points="242,43 244,45 243,47 241,47 240,45" fill="#1e293b" />
+                <circle cx="244.5" cy="48" r="0.8" fill="#1e293b" />
+                <circle cx="239.5" cy="48" r="0.8" fill="#1e293b" />
+              </g>
+            </g>
+
+            <!-- SECTION 3: Child Playing with Flying Kite -->
+            <g class="scene-child-kite-group">
+              <!-- Child Running with Kite String -->
+              <g class="scene-kite-runner">
+                <circle cx="340" cy="27" r="3.5" fill="#4338ca" />
+                <path d="M337 33C337 31.8 338.2 31 340 31C341.8 31 343 31.8 343 33L344.5 44H335.5L337 33Z"
+                  fill="#6366f1" />
+                <path d="M342 32L349 23" stroke="#4338ca" stroke-width="1.8" stroke-linecap="round" />
+                <line x1="338" y1="44" x2="333" y2="51" stroke="#4338ca" stroke-width="1.8" stroke-linecap="round"
+                  class="scene-kite-leg-1" />
+                <line x1="342" y1="44" x2="347" y2="50" stroke="#4338ca" stroke-width="1.8" stroke-linecap="round"
+                  class="scene-kite-leg-2" />
+              </g>
+
+              <!-- Kite String -->
+              <path d="M349 23C356 18 365 15 375 10" stroke="#94a3b8" stroke-width="1" stroke-dasharray="2 2"
+                class="scene-kite-string" />
+
+              <!-- Flying Kite with Fluttering Ribbon Tail -->
+              <g class="scene-kite">
+                <polygon points="375,5 382,10 375,15 368,10" fill="#ec4899" opacity="0.9" />
+                <polygon points="375,10 382,10 375,15" fill="#db2777" opacity="0.95" />
+                <path d="M375 15C378 18 374 21 377 25C375 28 378 30 376 33" stroke="#f472b6" stroke-width="1.2"
+                  fill="none" class="scene-kite-tail" />
+              </g>
+            </g>
+
+            <!-- Gentle Floating Sparkles -->
+            <circle cx="140" cy="18" r="1.5" fill="#818cf8" class="scene-sparkle-1" />
+            <circle cx="295" cy="15" r="1.5" fill="#34d399" class="scene-sparkle-2" />
+            <circle cx="430" cy="20" r="1.8" fill="#38bdf8" class="scene-sparkle-3" />
+          </svg>
         </div>
         <div class="header-actions">
           <div class="language-switcher" aria-label="Choose language"><button type="button"
@@ -91,48 +201,37 @@
 
       <section class="page active" id="dashboardPage">
         <div class="welcome">
-          <div><span class="eyebrow">TODAY’S WORK</span>
-            <h2>Good morning, MWCA Grievance Officer</h2>
-            <p>Review new cases, assign to relevant departments, or register a new grievance.</p>
+          <div>
+            <h2 id="welcomeGreeting">Good morning, MWCA Grievance Officer</h2>
           </div><button class="primary" data-go="register">＋ Register a grievance</button>
         </div>
         <div class="stats dashboard-stats">
           <article class="drill-card card-total" tabindex="0" role="button" data-drill-status="all">
-            <div class="stat-icon indigo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
-                <path d="M8 8h8M8 12h8M8 16h5" />
-              </svg></div>
-            <div><span>Total Grievances</span><strong id="totalStat">10</strong></div>
+            <div class="card-body">
+              <span class="card-label">Total Grievances</span>
+              <strong id="totalStat" class="card-val">0</strong>
+            </div>
           </article>
           <article class="drill-card card-awaiting" tabindex="0" role="button" data-drill-status="Awaiting Review">
-            <div class="stat-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="8.5" />
-                <path d="M12 7v5l3 2" />
-              </svg></div>
-            <div><span>Awaiting Review</span><strong id="awaitingStat">5</strong></div>
-          </article>
-          <article class="drill-card card-referrals" tabindex="0" role="button" data-drill-status="Forwarded">
-            <div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M5 7h13M14 3l4 4-4 4M19 17H6M10 13l-4 4 4 4" />
-              </svg></div>
-            <div><span>Department Referrals</span><strong id="forwardedStat">2</strong></div>
+            <div class="card-body">
+              <span class="card-label">Awaiting Review</span>
+              <strong id="awaitingStat" class="card-val">0</strong>
+            </div>
           </article>
           <article class="drill-card card-resolved" tabindex="0" role="button" data-drill-status="Resolved">
-            <div class="stat-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="8.5" />
-                <path d="m8 12 2.5 2.5L16 9" />
-              </svg></div>
-            <div><span>Resolved</span><strong id="resolvedStat">2</strong></div>
+            <div class="card-body">
+              <span class="card-label">Completed</span>
+              <strong id="resolvedStat" class="card-val">0</strong>
+            </div>
           </article>
           <article class="drill-card card-overdue" tabindex="0" role="button" id="overdueCard">
-            <div class="stat-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 9v4m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-              </svg></div>
-            <div>
-              <div style="display:flex;align-items:center;justify-content:space-between"><span>Overdue</span><span
-                  class="pulse-dot" title="Overdue cases require follow-up"></span></div><strong
-                id="overdueStat">7</strong><button type="button" class="reminder-btn" id="sendOfficeRemindersBtn">✉ Send
-                office reminders</button>
+            <div class="card-body" style="width:100%">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <span class="card-label">Overdue</span>
+                <span class="pulse-dot" title="Overdue cases require follow-up"></span>
+              </div>
+              <strong id="overdueStat" class="card-val">0</strong>
+              <button type="button" class="reminder-btn" id="sendOfficeRemindersBtn">✉ Send office reminders</button>
             </div>
           </article>
         </div>
@@ -219,18 +318,20 @@
             <option value="all">All Subcategories</option>
           </select>
           <select id="departmentFilter" aria-label="Filter by department">
-            <option value="all">All Departments</option>
-            <option value="Minister's Office">Minister's Office</option>
-            <option value="Secretary Office">Secretary Office</option>
-            <option value="Financial">Financial</option>
-            <option value="Development Branch">Development Branch</option>
-            <option value="Planning Division">Planning Division</option>
-            <option value="Child Secretariat Office">Child Secretariat Office</option>
-            <option value="Women's Bureau">Women's Bureau</option>
-            <option value="National Commission On Women">National Commission On Women</option>
-            <option value="National Child Protection Authority">National Child Protection Authority</option>
-            <option value="Department of Probation and Child Care Service">Department of Probation and Child Care
-              Service</option>
+            <option value="all">සියලුම දෙපාර්තමේන්තු / All Departments</option>
+            <option value="Minister's Office">අමාත්‍ය කාර්යාලය (Minister's Office)</option>
+            <option value="Secretary Office">ලේකම් කාර්යාලය (Secretary Office)</option>
+            <option value="Financial">මුදල් අංශය (Financial)</option>
+            <option value="Development Branch">සංවර්ධන අංශය (Development Branch)</option>
+            <option value="Planning Division">ක්‍රමසම්පාදන අංශය (Planning Division)</option>
+            <option value="Child Secretariat Office">ළමා ලේකම් කාර්යාලය (Child Secretariat Office)</option>
+            <option value="Women's Bureau">කාන්තා කාර්යාංශය (Women's Bureau)</option>
+            <option value="National Commission On Women">කාන්තාවන් පිළිබඳ ජාතික කොමිෂන් සභාව (National Commission On
+              Women)</option>
+            <option value="National Child Protection Authority">ජාතික ළමා ආරක්ෂක අධිකාරිය (National Child Protection
+              Authority)</option>
+            <option value="Department of Probation and Child Care Service">පරිවාස හා ළමාරක්ෂක සේවා දෙපාර්තමේන්තුව
+              (Department of Probation & Child Care Service)</option>
           </select>
           <select id="statusFilter" aria-label="Filter by status">
             <option value="all">All Statuses</option>
@@ -239,6 +340,7 @@
             <option>Forwarded</option>
             <option>Resolved</option>
             <option>Closed</option>
+            <option value="Overdue">Overdue</option>
           </select>
           <select id="priorityFilter" aria-label="Filter by priority">
             <option value="all">All Priorities</option>
@@ -265,7 +367,6 @@
                   <th>Sent by</th>
                   <th>Forwarded to</th>
                   <th>The Action taken by the relevant Division and the Date</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody id="allBody"></tbody>
@@ -286,13 +387,19 @@
                     <option value="Presidential Secretariat">Presidential Secretariat</option>
                     <option value="Prime Minister's Office">Prime Minister's Office</option>
                     <option value="Public Persons" selected>Public Persons</option>
-                  </select></label><label>Date received *<input type="date" name="date" id="regDate" value="2026-09-15"
-                    required /></label><label>Intake Method<select name="method">
+                  </select></label><label>Date received *<input type="date" name="date" id="regDate"
+                    required /></label><label>Target Deadline<select name="deadlineDays" id="regDeadlineDays">
+                    <option value="7" selected>7 Days (Standard)</option>
+                    <option value="14">14 Days (Two Weeks)</option>
+                    <option value="30">30 Days (One Month)</option>
+                    <option value="custom">Custom Target Date</option>
+                  </select></label><label id="customDueDateLabel" style="display:none">Custom Target Date<input
+                    type="date" name="dueDate" id="regDueDate" /></label><label>Intake Method<select name="method">
                     <option>By Hand</option>
-                    <option>Letter / Dispatch</option>
+                    <option>Letter</option>
                     <option>Email</option>
                     <option>Telephone Hotline</option>
-                    <option>Online Form</option>
+                    <option>Fax</option>
                   </select></label><label>Priority Level<select name="priority">
                     <option value="Normal">Normal</option>
                     <option value="High">High</option>
@@ -306,8 +413,8 @@
                     required /></label><label>NIC / ID Number<input name="nic"
                     placeholder="e.g. 199012345678" /></label><label>Contact number<input name="phone"
                     placeholder="07X XXX XXXX" />
-                </label><label>Address<input name="address"
-                    placeholder="Enter address" /></label><label>District<select name="district">
+                </label><label>Address<input name="address" placeholder="Enter address" /></label><label>District<select
+                    name="district">
                     <option>Colombo</option>
                     <option>Gampaha</option>
                     <option>Kalutara</option>
@@ -333,20 +440,37 @@
                     name="assignedDivision" id="regDepartment"
                     placeholder="Type or select any department or ministry (e.g. NCPA, Ministry of Health, Sri Lanka Police)" /><datalist
                     id="departmentSuggestions">
-                    <option value="Minister's Office">Minister's Office</option>
-                    <option value="Secretary Office">Secretary Office</option>
-                    <option value="Financial">Financial</option>
-                    <option value="Development Branch">Development Branch</option>
-                    <option value="Planning Division">Planning Division</option>
-                    <option value="Child Secretariat Office">Child Secretariat Office</option>
-                    <option value="Women's Bureau">Women's Bureau</option>
-                    <option value="National Commission On Women">National Commission On Women</option>
-                    <option value="National Child Protection Authority">National Child Protection Authority</option>
-                    <option value="Department of Probation and Child Care Service">Department of Probation and Child
-                      Care Service</option>
+                    <option value="අමාත්‍ය කාර්යාලය (Minister's Office)">අමාත්‍ය කාර්යාලය (Minister's Office)</option>
+                    <option value="ලේකම් කාර්යාලය (Secretary Office)">ලේකම් කාර්යාලය (Secretary Office)</option>
+                    <option value="මුදල් අංශය (Financial)">මුදල් අංශය (Financial)</option>
+                    <option value="සංවර්ධන අංශය (Development Branch)">සංවර්ධන අංශය (Development Branch)</option>
+                    <option value="ක්‍රමසම්පාදන අංශය (Planning Division)">ක්‍රමසම්පාදන අංශය (Planning Division)</option>
+                    <option value="ළමා ලේකම් කාර්යාලය (Child Secretariat Office)">ළමා ලේකම් කාර්යාලය (Child Secretariat
+                      Office)</option>
+                    <option value="කාන්තා කාර්යාංශය (Women's Bureau)">කාන්තා කාර්යාංශය (Women's Bureau)</option>
+                    <option value="කාන්තාවන් පිළිබඳ ජාතික කොමිෂන් සභාව (National Commission On Women)">කාන්තාවන් පිළිබඳ
+                      ජාතික කොමිෂන් සභාව (National Commission On Women)</option>
+                    <option value="ජාතික ළමා ආරක්ෂක අධිකාරිය (National Child Protection Authority)">ජාතික ළමා ආරක්ෂක
+                      අධිකාරිය (National Child Protection Authority)</option>
+                    <option
+                      value="පරිවාස හා ළමාරක්ෂක සේවා දෙපාර්තමේන්තුව (Department of Probation and Child Care Service)">
+                      පරිවාස හා ළමාරක්ෂක සේවා දෙපාර්තමේන්තුව (Department of Probation and Child Care Service)</option>
+                    <option value="අමාත්‍ය කාර්යාලය">අමාත්‍ය කාර්යාලය</option>
+                    <option value="ලේකම් කාර්යාලය">ලේකම් කාර්යාලය</option>
+                    <option value="මුදල් අංශය">මුදල් අංශය</option>
+                    <option value="සංවර්ධන අංශය">සංවර්ධන අංශය</option>
+                    <option value="ක්‍රමසම්පාදන අංශය">ක්‍රමසම්පාදන අංශය</option>
+                    <option value="ළමා ලේකම් කාර්යාලය">ළමා ලේකම් කාර්යාලය</option>
+                    <option value="කාන්තා කාර්යාංශය">කාන්තා කාර්යාංශය</option>
+                    <option value="කාන්තාවන් පිළිබඳ ජාතික කොමිෂන් සභාව">කාන්තාවන් පිළිබඳ ජාතික කොමිෂන් සභාව</option>
+                    <option value="ජාතික ළමා ආරක්ෂක අධිකාරිය">ජාතික ළමා ආරක්ෂක අධිකාරිය</option>
+                    <option value="පරිවාස හා ළමාරක්ෂක සේවා දෙපාර්තමේන්තුව">පරිවාස හා ළමාරක්ෂක සේවා දෙපාර්තමේන්තුව
+                    </option>
                   </datalist></label><label class="full">Recipient Department Emails <small>(Separate multiple addresses
                     with commas or semicolons)</small><input type="text" name="recipientEmail" id="regRecipientEmail"
-                    placeholder="department@example.gov, officer@example.gov" /></label><label class="full">Attach
+                    placeholder="department@example.gov, officer@example.gov" />
+                  <div id="regQuickEmailContainer"></div>
+                </label><label class="full">Attach
                   Grievance Documents / Letters <small>(Select multiple PDF, Word, or image files)</small><input
                     type="file" id="regAttachmentFile" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" multiple />
                   <div id="attachmentFileNotice" style="margin-top:6px;font-size:0.85rem;color:var(--text-muted,#555)">
@@ -371,7 +495,6 @@
         <div class="referral-head">
           <div>
             <h2>Department Referrals & Assignments</h2>
-            <p>Track grievances routed to MWCA departments and agencies.</p>
           </div><button class="primary" id="newReferral">＋ Assign new referral</button>
         </div>
         <div class="kanban">
@@ -469,11 +592,15 @@
           <option>Critical</option>
           <option>High</option>
           <option>Normal</option>
-        </select></label><label>Assign / Forward to Department or Ministry<input list="departmentSuggestions"
-          id="dialogAssignee" placeholder="Type or select any department or ministry name" /></label><label
+        </select></label><label>Target Deadline<input type="date" id="dialogDueDate"
+          title="Set or extend target deadline date" /></label><label>Assign / Forward to Department or Ministry<input
+          list="departmentSuggestions" id="dialogAssignee"
+          placeholder="Type or select any department or ministry name" /></label><label
         style="grid-column: span 2">Recipient Department Email <small>(Auto-filled or custom)</small><input type="text"
-          id="dialogRecipientEmail" placeholder="one@example.gov, two@example.gov" /></label><button class="primary"
-        id="saveStatus">Save update</button><button class="secondary" id="sendEmailBtn" type="button">✉ Send Email
+          id="dialogRecipientEmail" placeholder="one@example.gov, two@example.gov" />
+        <div id="dialogQuickContainer"></div>
+      </label><button class="primary" id="saveStatus">Save update</button><button class="secondary" id="sendEmailBtn"
+        type="button">✉ Send Email
         Referral</button><button class="danger-button" id="sendReminderBtn" type="button" hidden>⚠ Send Overdue
         Reminder</button><button class="danger-button" id="deleteCase" type="button">Delete</button></div>
   </dialog>
@@ -490,8 +617,9 @@
         <p>Dispatches grievance details and CSV summary attachments to the designated department.</p>
       </div><label>Target Department / Ministry<input list="departmentSuggestions" id="emailTargetDept"
           placeholder="Type or select target department or ministry" required /></label><label>Recipient Email Addresses
-        *<input id="emailTargetAddr" type="text" required
-          placeholder="one@example.gov, two@example.gov" /></label><small>Separate multiple addresses with commas or
+        *<input id="emailTargetAddr" type="text" required placeholder="one@example.gov, two@example.gov" />
+        <div id="emailQuickContainer"></div>
+      </label><small>Separate multiple addresses with commas or
         semicolons.</small><label>Email Subject<input id="emailSubject" readonly
           style="background:#f4f5f8" /></label><label>Referral Note / Instructions for Department<textarea
           id="emailNote" rows="4"
@@ -527,6 +655,7 @@
         <label>Recipient Email Addresses *
           <input id="deptSummaryRecipientEmails" type="text" placeholder="department@mwca.gov.lk, officer@mwca.gov.lk"
             required />
+          <div id="deptSummaryQuickContainer"></div>
         </label>
       </div>
       <div style="background:#f8f9fc;border:1px solid #e2e8f0;border-radius:8px;padding:12px">
@@ -617,7 +746,6 @@
       <div>
         <span class="eyebrow" style="color:#e11d48">OVERDUE ACTION DESK</span>
         <h2>Send Office Reminders</h2>
-        <p class="dialog-subtitle">Batch email dispatch for overdue grievances requiring official follow-up action.</p>
       </div>
       <button id="closeRemindersDialog" aria-label="Close">×</button>
     </div>
@@ -631,8 +759,7 @@
         style="max-height:220px;overflow-y:auto;border:1px solid #ffe4e6;border-radius:10px;padding:8px 12px;background:#fff">
         <div id="remindersList" style="display:flex;flex-direction:column;gap:8px"></div>
       </div>
-      <label style="margin-top:4px">Custom Reminder Note / Directive <small
-          style="font-weight:400;color:#666">(Optional)</small>
+      <label style="margin-top:4px">Custom Reminder Note <small style="font-weight:400;color:#666">(Optional)</small>
         <textarea id="remindersNote" rows="3"
           placeholder="Enter urgent instructions, priority escalation note, or target deadline..."></textarea>
       </label>

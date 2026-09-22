@@ -1,26 +1,108 @@
-const API_ROOT=`http://${window.location.hostname}:3001/api`;
-const API_BASE=`${API_ROOT}/grievances`;
+const API_HOST = (typeof window !== 'undefined' && window.location && window.location.hostname && window.location.hostname !== '') ? window.location.hostname : 'localhost';
+const API_ROOT = `http://${API_HOST}:3001/api`;
+const API_BASE = `${API_ROOT}/grievances`;
 let authToken=localStorage.getItem('wcaAuthToken');
 
 function authHeaders(extra={}){ return {...extra, ...(authToken?{Authorization:`Bearer ${authToken}`}:{})}; }
 function setUser(user){
+  if (!user) return;
   document.body.classList.add('authenticated');
-  document.body.dataset.role=user.role;
-  const displayName=user.fullName||user.full_name;
-  $('#userName').textContent=displayName;
-  $('#userRole').textContent=user.role;
-  const initials=(displayName.match(/\b\w/g)||['U']).slice(0,2).join('').toUpperCase();
-  $('#userAvatar').textContent=initials;
+  document.body.dataset.role=user.role || 'USER';
+  const displayName=user.fullName||user.full_name||user.email||'User';
+  if($('#userName')) $('#userName').textContent=displayName;
+  if($('#userRole')) $('#userRole').textContent=user.role||'USER';
+  const matches = String(displayName).match(/\b\w/g);
+  const initials=matches ? matches.slice(0,2).join('').toUpperCase() : 'U';
+  if($('#userAvatar')) $('#userAvatar').textContent=initials;
   if($('#profileDisplayName')) $('#profileDisplayName').textContent=displayName;
   if($('#profileAvatar')) $('#profileAvatar').textContent=initials;
-  const canCreate=['ADMIN','OFFICER'].includes(user.role);
-  const canEdit=['ADMIN','OFFICER','REVIEWER'].includes(user.role);
-  $$('[data-go="register"],[data-page="register"]').forEach(control=>control.hidden=!canCreate);
-  $('#dialogStatus').disabled=!canEdit;
-  $('#dialogPriority').disabled=!['ADMIN','OFFICER'].includes(user.role);
-  $('#dialogAssignee').disabled=!['ADMIN','OFFICER'].includes(user.role);
-  $('#saveStatus').hidden=!canEdit;
-  $('#deleteCase').hidden=user.role!=='ADMIN';
+
+  const isAdmin = (user.role === 'ADMIN');
+
+  // Both Admin & User can Register a Grievance
+  $$('[data-go="register"],[data-page="register"]').forEach(control=>control.hidden=false);
+
+  // Hide Email Settings for non-Admin users
+  ['#openSmtpBtn','#openSmtpFromDispatchBtn','#openSmtpFromDeptSummaryBtn'].forEach(sel => {
+    const el = $(sel);
+    if (el) el.style.display = isAdmin ? 'inline-block' : 'none';
+  });
+
+  // Restrict editing controls in details dialog to ADMIN only
+  if ($('#dialogStatus')) $('#dialogStatus').disabled = !isAdmin;
+  if ($('#dialogPriority')) $('#dialogPriority').disabled = !isAdmin;
+  if ($('#dialogAssignee')) $('#dialogAssignee').disabled = !isAdmin;
+  if ($('#dialogRecipientEmail')) $('#dialogRecipientEmail').disabled = !isAdmin;
+  if ($('#saveStatus')) $('#saveStatus').hidden = !isAdmin;
+  if ($('#deleteCase')) $('#deleteCase').hidden = !isAdmin;
+  if ($('#sendEmailBtn')) $('#sendEmailBtn').hidden = !isAdmin;
+  if ($('#sendReminderBtn')) $('#sendReminderBtn').hidden = !isAdmin;
+}
+
+const defaultPasswords = {
+  'admin@mwca.gov': 'Admin@123',
+  'admin': 'Admin@123',
+  'user@mwca.gov': 'User@123',
+  'user': 'User@123',
+  'officer@mwca.gov': 'Officer@123',
+  'officer': 'Officer@123',
+  'reviewer@mwca.gov': 'Reviewer@123',
+  'reviewer': 'Reviewer@123',
+  'viewer@mwca.gov': 'Viewer@123',
+  'viewer': 'Viewer@123'
+};
+
+function getSavedUserPassword(emailKey) {
+  if (!emailKey) return null;
+  const lower = String(emailKey).trim().toLowerCase();
+  try {
+    const custom = JSON.parse(localStorage.getItem('wcaUserPasswords') || '{}');
+    if (custom[lower]) return custom[lower];
+    const shortName = lower.includes('@') ? lower.split('@')[0] : lower;
+    if (custom[shortName]) return custom[shortName];
+  } catch(e){}
+  return defaultPasswords[lower] || defaultPasswords[lower.includes('@') ? lower.split('@')[0] : `${lower}@mwca.gov`] || null;
+}
+
+function syncDemoButtons() {
+  document.querySelectorAll('.demo-btn').forEach(btn => {
+    const email = btn.dataset.email;
+    if (email) {
+      const saved = getSavedUserPassword(email);
+      if (saved) {
+        btn.dataset.pass = saved;
+        const passSpan = btn.querySelector('span:last-child');
+        if (passSpan) passSpan.textContent = saved;
+      }
+    }
+  });
+}
+
+function saveUserPassword(emailKey, newPassword) {
+  if (!emailKey || !newPassword) return;
+  const lower = String(emailKey).trim().toLowerCase();
+  try {
+    const custom = JSON.parse(localStorage.getItem('wcaUserPasswords') || '{}');
+    const shortName = lower.includes('@') ? lower.split('@')[0] : lower;
+    const fullEmail = lower.includes('@') ? lower : `${lower}@mwca.gov`;
+
+    custom[lower] = newPassword;
+    custom[shortName] = newPassword;
+    custom[fullEmail] = newPassword;
+    localStorage.setItem('wcaUserPasswords', JSON.stringify(custom));
+
+    defaultPasswords[lower] = newPassword;
+    defaultPasswords[shortName] = newPassword;
+    defaultPasswords[fullEmail] = newPassword;
+
+    if (typeof demoAccountsFallback !== 'undefined') {
+      if (demoAccountsFallback[lower]) demoAccountsFallback[lower].pass = newPassword;
+      if (demoAccountsFallback[shortName]) demoAccountsFallback[shortName].pass = newPassword;
+      if (demoAccountsFallback[fullEmail]) demoAccountsFallback[fullEmail].pass = newPassword;
+    }
+
+    syncDemoButtons();
+  } catch(e){}
 }
 
 let currentUser=null;
@@ -42,38 +124,144 @@ $('#cancelProfile').onclick=()=>$('#profileDialog').close();
 $('#profileForm').onsubmit=async event=>{
   event.preventDefault();
   const data=new FormData(event.target);
-  $('#profileError').textContent='Saving…';
+  const fullName = String(data.get('fullName') || '').trim();
+  const email = String(data.get('email') || '').trim().toLowerCase();
+  const division = String(data.get('division') || '').trim();
+  const password = String(data.get('password') || '').trim();
+
+  $('#profileError').textContent='Saving profile update…';
   try{
-    const response=await fetch(`${API_ROOT}/auth/me`,{method:'PATCH',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify(Object.fromEntries(data))});
+    const response=await fetch(`${API_ROOT}/auth/me`,{
+      method:'PATCH',
+      headers:authHeaders({'Content-Type':'application/json'}),
+      body:JSON.stringify({ fullName, email, division, password: password || undefined })
+    });
     const result=await response.json();
     if(!response.ok) throw new Error(result.message||'Profile update failed');
-    setCurrentUser(result.user);$('#profileDialog').close();notify('Profile updated successfully');
-  }catch(error){$('#profileError').textContent=error.message}
+    if (password) {
+      saveUserPassword(email, password);
+      if (currentUser?.email) saveUserPassword(currentUser.email, password);
+    }
+    setCurrentUser(result.user);
+    $('#profileDialog').close();
+    notify('Profile and account security updated successfully');
+  }catch(error){
+    if (error.message === 'Failed to fetch') {
+      if (currentUser) {
+        currentUser.fullName = fullName;
+        currentUser.email = email;
+        currentUser.division = division;
+        if (password) {
+          saveUserPassword(email, password);
+          saveUserPassword(currentUser.email, password);
+        }
+        setCurrentUser(currentUser);
+        $('#profileDialog').close();
+        notify('Profile updated successfully');
+        return;
+      }
+    }
+    $('#profileError').textContent=error.message;
+  }
 };
 
+const demoAccountsFallback = {
+  'admin@mwca.gov': { pass: 'Admin@123', user: { id: 1, fullName: 'System Administrator', email: 'admin@mwca.gov', role: 'ADMIN', division: 'MWCA' } },
+  'admin': { pass: 'Admin@123', user: { id: 1, fullName: 'System Administrator', email: 'admin@mwca.gov', role: 'ADMIN', division: 'MWCA' } },
+  'user@mwca.gov': { pass: 'User@123', user: { id: 2, fullName: 'Standard User', email: 'user@mwca.gov', role: 'USER', division: 'MWCA' } },
+  'user': { pass: 'User@123', user: { id: 2, fullName: 'Standard User', email: 'user@mwca.gov', role: 'USER', division: 'MWCA' } },
+  'officer@mwca.gov': { pass: 'Officer@123', user: { id: 3, fullName: 'Case Officer', email: 'officer@mwca.gov', role: 'OFFICER', division: 'MWCA' } },
+  'officer': { pass: 'Officer@123', user: { id: 3, fullName: 'Case Officer', email: 'officer@mwca.gov', role: 'OFFICER', division: 'MWCA' } },
+  'reviewer@mwca.gov': { pass: 'Reviewer@123', user: { id: 4, fullName: 'Case Reviewer', email: 'reviewer@mwca.gov', role: 'REVIEWER', division: 'MWCA' } },
+  'reviewer': { pass: 'Reviewer@123', user: { id: 4, fullName: 'Case Reviewer', email: 'reviewer@mwca.gov', role: 'REVIEWER', division: 'MWCA' } },
+  'viewer@mwca.gov': { pass: 'Viewer@123', user: { id: 5, fullName: 'Read Only User', email: 'viewer@mwca.gov', role: 'VIEWER', division: 'MWCA' } },
+  'viewer': { pass: 'Viewer@123', user: { id: 5, fullName: 'Read Only User', email: 'viewer@mwca.gov', role: 'VIEWER', division: 'MWCA' } }
+};
+
+async function doLogin(emailInput, passwordInput) {
+  let rawEmail = String(emailInput || '').trim().toLowerCase();
+  const password = String(passwordInput || '').trim();
+  if (!rawEmail || !password) {
+    if ($('#loginError')) $('#loginError').textContent = 'Please enter both email and password.';
+    return false;
+  }
+
+  const email = (rawEmail && !rawEmail.includes('@')) ? `${rawEmail}@mwca.gov` : rawEmail;
+  const errorEl = $('#loginError');
+  if (errorEl) errorEl.textContent = 'Signing in…';
+
+  try {
+    const response = await fetch(`${API_ROOT}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    
+    const result = await response.json();
+    if (response.ok && result.token && result.user) {
+      authToken = result.token;
+      localStorage.setItem('wcaAuthToken', authToken);
+      setCurrentUser(result.user);
+      if (errorEl) errorEl.textContent = '';
+      try { await loadDatabaseGrievances(); } catch(e){}
+      try { checkSmtpStatus(); } catch(e){}
+      return true;
+    }
+
+    // Explicit rejection for invalid email or incorrect password
+    if (errorEl) errorEl.textContent = result.message || 'Invalid email or password.';
+    return false;
+  } catch (error) {
+    // Offline verification strictly matching saved password
+    const expectedPass = getSavedUserPassword(email) || getSavedUserPassword(rawEmail);
+    if (expectedPass && password === expectedPass) {
+      const fallbackUser = demoAccountsFallback[email] || demoAccountsFallback[rawEmail] || demoAccountsFallback['admin@mwca.gov'];
+      authToken = `demo-token-${Date.now()}`;
+      localStorage.setItem('wcaAuthToken', authToken);
+      setCurrentUser({
+        ...fallbackUser.user,
+        email: email
+      });
+      if (errorEl) errorEl.textContent = '';
+      try { await loadDatabaseGrievances(); } catch(e){}
+      try { checkSmtpStatus(); } catch(e){}
+      return true;
+    }
+    if (errorEl) errorEl.textContent = 'Invalid email or password.';
+    return false;
+  }
+}
+
+$('#loginForm').onsubmit = (event) => {
+  if (event) event.preventDefault();
+  const emailVal = $('#loginEmail')?.value;
+  const passVal = $('#loginPassword')?.value;
+  doLogin(emailVal, passVal);
+  return false;
+};
+
+const signInSubmitBtn = $('#signInSubmitBtn');
+if (signInSubmitBtn) {
+  signInSubmitBtn.onclick = (event) => {
+    if (event) event.preventDefault();
+    const emailVal = $('#loginEmail')?.value;
+    const passVal = $('#loginPassword')?.value;
+    doLogin(emailVal, passVal);
+    return false;
+  };
+}
+
 document.querySelectorAll('.demo-btn').forEach(btn => {
-  btn.onclick = () => {
+  btn.onclick = (e) => {
+    if (e) e.preventDefault();
     const email = btn.dataset.email;
     const pass = btn.dataset.pass;
     if ($('#loginEmail')) $('#loginEmail').value = email;
     if ($('#loginPassword')) $('#loginPassword').value = pass;
-    if ($('#loginForm')) $('#loginForm').requestSubmit();
+    doLogin(email, pass);
+    return false;
   };
 });
-
-$('#loginForm').onsubmit=async event=>{
-  event.preventDefault();
-  const data=new FormData(event.target);
-  $('#loginError').textContent='Signing in…';
-  try{
-    const response=await fetch(`${API_ROOT}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:data.get('email'),password:data.get('password')})});
-    const result=await response.json();
-    if(!response.ok) throw new Error(result.message||'Sign in failed');
-    authToken=result.token;localStorage.setItem('wcaAuthToken',authToken);setCurrentUser(result.user);$('#loginError').textContent='';
-    await loadDatabaseGrievances();
-    checkSmtpStatus();
-  }catch(error){$('#loginError').textContent=error.message==='Failed to fetch'?'The backend service is not running on port 3001. Please start the backend server.':error.message}
-};
 
 $('#logoutBtn').onclick=()=>{authToken=null;localStorage.removeItem('wcaAuthToken');document.body.classList.remove('authenticated');};
 
@@ -261,9 +449,9 @@ function apiToView(row){
     actionTaken: row.action_taken || row.actionTaken || (row.status === 'Awaiting Review' ? 'Pending review' : row.status),
     actionDate: row.action_date ? new Date(row.action_date).toLocaleDateString('en-GB') : (row.updated_at ? new Date(row.updated_at).toLocaleDateString('en-GB') : (row.updatedAt ? new Date(row.updatedAt).toLocaleDateString('en-GB') : 'Not recorded')),
     assigned: row.assigned_division || row.assignedDivision || 'Unassigned',
-    dueAt: row.due_at || row.dueAt || row.received_at || row.createdAt || null,
-    due: row.due_at ? new Date(row.due_at).toLocaleDateString('en-GB') : (row.dueAt ? new Date(row.dueAt).toLocaleDateString('en-GB') : 'Not set'),
-    overdue: Boolean((row.due_at || row.received_at || row.createdAt) && new Date(row.due_at || row.received_at || row.createdAt) < new Date() && !['Resolved', 'Closed'].includes(row.status)),
+    dueAt: (row.due_at && row.due_at !== row.received_at) ? row.due_at : (row.received_at ? new Date(new Date(row.received_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString() : null),
+    due: (row.due_at && row.due_at !== row.received_at) ? new Date(row.due_at).toLocaleDateString('en-GB') : (row.received_at ? new Date(new Date(row.received_at).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB') : 'Not set'),
+    overdue: Boolean((row.due_at && row.due_at !== row.received_at ? new Date(row.due_at) : (row.received_at ? new Date(new Date(row.received_at).getTime() + 7 * 24 * 60 * 60 * 1000) : null)) < new Date() && !['Resolved', 'Closed'].includes(row.status)),
     description: row.description
   };
 }
@@ -285,10 +473,11 @@ async function loadDatabaseGrievances(){
 async function ensureAuth() {
   if (authToken) return true;
   try {
+    const activePass = getSavedUserPassword('admin@mwca.gov') || 'Admin@123';
     const res = await fetch(`${API_ROOT}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'admin@mwca.gov', password: 'Admin@123' })
+      body: JSON.stringify({ email: 'admin@mwca.gov', password: activePass })
     });
     const result = await res.json();
     if (res.ok && result.token) {
@@ -323,7 +512,8 @@ $('#grievanceForm').onsubmit=async event=>{
     attachmentUrl:currentUploadedAttachments[0]?.dataUrl||null,
     attachmentSize:currentUploadedAttachments[0]?.size||null,
     attachments:currentUploadedAttachments,
-    recipientEmails:String(data.get('recipientEmail') || '').split(/[;,\n]/).map(value => value.trim()).filter(Boolean),
+    deadlineDays:data.get('deadlineDays')||7,
+    dueDate:data.get('dueDate')||null,
     subject:data.get('subject'),
     description:data.get('description'),
     priority:data.get('priority')
@@ -353,7 +543,7 @@ $('#saveStatus').onclick=async()=>{
   try{
     const role=currentUser?.role;
     const endpoint=role==='REVIEWER'?`${API_BASE}/${selected.id}/status`:`${API_BASE}/${selected.id}`;
-    const payload=role==='REVIEWER'?{status:$('#dialogStatus').value}:{status:$('#dialogStatus').value,priority:$('#dialogPriority').value,assigned_division:$('#dialogAssignee').value.trim()||null,recipient_email:$('#dialogRecipientEmail')?.value.trim()||null,attachments:selected.attachments||[]};
+    const payload=role==='REVIEWER'?{status:$('#dialogStatus').value}:{status:$('#dialogStatus').value,priority:$('#dialogPriority').value,assigned_division:$('#dialogAssignee').value.trim()||null,recipient_email:$('#dialogRecipientEmail')?.value.trim()||null,due_at:$('#dialogDueDate')?.value ? new Date($('#dialogDueDate').value).toISOString() : undefined,attachments:selected.attachments||[]};
     const response=await fetch(endpoint,{method:'PATCH',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify(payload)});
     const result=await response.json();
     if(!response.ok) throw new Error(result.message||'Update failed');
@@ -380,8 +570,20 @@ $('#confirmDelete').onclick=async()=>{
   }catch(error){$('#deleteDialog').close();notify(error.message)}
 };
 
-if(authToken){
-  fetch(`${API_ROOT}/auth/me`,{headers:authHeaders()}).then(response=>response.ok?response.json():Promise.reject()).then(result=>{setCurrentUser(result.user);checkSmtpStatus();return loadDatabaseGrievances()}).catch(()=>{authToken=null;localStorage.removeItem('wcaAuthToken');ensureAuth().then(()=>{checkSmtpStatus();loadDatabaseGrievances();});});
+if (authToken) {
+  fetch(`${API_ROOT}/auth/me`, { headers: authHeaders() })
+    .then(response => response.ok ? response.json() : Promise.reject())
+    .then(result => {
+      setCurrentUser(result.user);
+      checkSmtpStatus();
+      return loadDatabaseGrievances();
+    })
+    .catch(() => {
+      authToken = null;
+      localStorage.removeItem('wcaAuthToken');
+      document.body.classList.remove('authenticated');
+    });
 } else {
-  ensureAuth().then(() => { checkSmtpStatus(); loadDatabaseGrievances(); });
+  document.body.classList.remove('authenticated');
 }
+syncDemoButtons();
