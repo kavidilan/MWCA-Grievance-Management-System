@@ -1,5 +1,7 @@
 const API_HOST = (typeof window !== 'undefined' && window.location && window.location.hostname && window.location.hostname !== '') ? window.location.hostname : 'localhost';
-const API_ROOT = `http://${API_HOST}:3001/api`;
+const API_ROOT = (typeof window !== 'undefined' && window.location && (window.location.protocol === 'http:' || window.location.protocol === 'https:'))
+  ? '/api'
+  : `http://${API_HOST}:3001/api`;
 const API_BASE = `${API_ROOT}/grievances`;
 let authToken=localStorage.getItem('wcaAuthToken');
 
@@ -34,6 +36,7 @@ function setUser(user){
   if ($('#dialogAssignee')) $('#dialogAssignee').disabled = !isAdmin;
   if ($('#dialogRecipientEmail')) $('#dialogRecipientEmail').disabled = !isAdmin;
   if ($('#saveStatus')) $('#saveStatus').hidden = !isAdmin;
+  if ($('#editCaseBtn')) $('#editCaseBtn').hidden = !isAdmin;
   if ($('#deleteCase')) $('#deleteCase').hidden = !isAdmin;
   if ($('#sendEmailBtn')) $('#sendEmailBtn').hidden = !isAdmin;
   if ($('#sendReminderBtn')) $('#sendReminderBtn').hidden = !isAdmin;
@@ -569,6 +572,146 @@ $('#confirmDelete').onclick=async()=>{
     $('#deleteDialog').close();$('#caseDialog').close();await loadDatabaseGrievances();notify('Grievance deleted');
   }catch(error){$('#deleteDialog').close();notify(error.message)}
 };
+
+function openEditGrievanceDialog() {
+  if (!selected) return;
+
+  if ($('#editGrievanceTitle')) $('#editGrievanceTitle').textContent = `Edit Grievance - ${selected.ref}`;
+  if ($('#editName')) $('#editName').value = selected.name || '';
+  if ($('#editNic')) $('#editNic').value = selected.nic || '';
+  if ($('#editPhone')) $('#editPhone').value = selected.phone || '';
+  if ($('#editDistrict')) $('#editDistrict').value = selected.district || 'Colombo';
+  if ($('#editAddress')) $('#editAddress').value = selected.address || '';
+
+  if ($('#editCategory')) {
+    $('#editCategory').value = selected.category || 'Women';
+    if (typeof populateSubcategories === 'function') {
+      populateSubcategories('editCategory', 'editSubcategory', selected.subcategory || '');
+    }
+  }
+  if ($('#editPriority')) $('#editPriority').value = selected.priority || 'Normal';
+  if ($('#editSource')) $('#editSource').value = selected.source || 'Written Letter / Postal';
+  if ($('#editAssigned')) $('#editAssigned').value = selected.assigned === 'Unassigned' ? '' : (selected.assigned || '');
+  if ($('#editRecipientEmail')) $('#editRecipientEmail').value = selected.recipientEmail || '';
+  
+  if ($('#editDueDate')) {
+    if (selected.dueAt) {
+      try {
+        const d = new Date(selected.dueAt);
+        if (!isNaN(d.getTime())) $('#editDueDate').value = d.toISOString().slice(0, 10);
+        else $('#editDueDate').value = '';
+      } catch(e) { $('#editDueDate').value = ''; }
+    } else {
+      $('#editDueDate').value = '';
+    }
+  }
+
+  if ($('#editConfidential')) $('#editConfidential').value = selected.confidential || 'Standard';
+  if ($('#editSubject')) $('#editSubject').value = selected.subject || '';
+  if ($('#editDescription')) $('#editDescription').value = selected.description || '';
+
+  if ($('#editGrievanceDialog')) $('#editGrievanceDialog').showModal();
+}
+
+if ($('#editCategory')) {
+  $('#editCategory').onchange = () => {
+    if (typeof populateSubcategories === 'function') {
+      populateSubcategories('editCategory', 'editSubcategory');
+    }
+  };
+}
+
+if ($('#editCaseBtn')) {
+  $('#editCaseBtn').onclick = () => {
+    openEditGrievanceDialog();
+  };
+}
+
+if ($('#closeEditGrievanceDialog')) $('#closeEditGrievanceDialog').onclick = () => $('#editGrievanceDialog').close();
+if ($('#cancelEditGrievance')) $('#cancelEditGrievance').onclick = () => $('#editGrievanceDialog').close();
+
+const editGrievanceForm = $('#editGrievanceForm');
+if (editGrievanceForm) {
+  editGrievanceForm.onsubmit = async (e) => {
+    e.preventDefault();
+    if (!selected || !selected.id) {
+      notify('Selected record is not stored in the database.');
+      return;
+    }
+    if (currentUser?.role !== 'ADMIN') {
+      notify('Only administrators can edit grievance details.');
+      return;
+    }
+
+    const saveBtn = $('#saveEditGrievanceBtn');
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving Changes...';
+    }
+
+    try {
+      const payload = {
+        complainant_name: $('#editName').value.trim(),
+        complainantName: $('#editName').value.trim(),
+        name: $('#editName').value.trim(),
+        nic: $('#editNic').value.trim(),
+        telephone: $('#editPhone').value.trim(),
+        phone: $('#editPhone').value.trim(),
+        district: $('#editDistrict').value,
+        address: $('#editAddress').value.trim(),
+        category: $('#editCategory').value,
+        subcategory: $('#editSubcategory').value,
+        priority: $('#editPriority').value,
+        source: $('#editSource').value,
+        assigned_division: $('#editAssigned').value.trim() || null,
+        assignedDivision: $('#editAssigned').value.trim() || null,
+        recipient_email: $('#editRecipientEmail').value.trim() || null,
+        recipientEmail: $('#editRecipientEmail').value.trim() || null,
+        due_at: $('#editDueDate').value ? new Date($('#editDueDate').value).toISOString() : null,
+        confidentiality: $('#editConfidential').value,
+        confidential: $('#editConfidential').value,
+        subject: $('#editSubject').value.trim(),
+        description: $('#editDescription').value.trim()
+      };
+
+      const response = await fetch(`${API_BASE}/${selected.id}`, {
+        method: 'PATCH',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Failed to update grievance');
+
+      selected.name = payload.name;
+      selected.nic = payload.nic;
+      selected.phone = payload.phone;
+      selected.district = payload.district;
+      selected.address = payload.address;
+      selected.category = payload.category;
+      selected.subcategory = payload.subcategory;
+      selected.priority = payload.priority;
+      selected.source = payload.source;
+      selected.assigned = payload.assigned_division || 'Unassigned';
+      selected.recipientEmail = payload.recipient_email;
+      selected.subject = payload.subject;
+      selected.description = payload.description;
+      selected.confidential = payload.confidentiality;
+
+      $('#editGrievanceDialog').close();
+      $('#caseDialog').close();
+      await loadDatabaseGrievances();
+      notify(`✅ Grievance ${selected.ref} updated successfully!`);
+    } catch (err) {
+      notify(`Update failed: ${err.message}`);
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Changes';
+      }
+    }
+  };
+}
 
 if (authToken) {
   fetch(`${API_ROOT}/auth/me`, { headers: authHeaders() })

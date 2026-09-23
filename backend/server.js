@@ -36,7 +36,7 @@ async function startServer() {
     await initializeDatabase();
     await ensureDefaultUsers();
 
-    const server = app.listen(port, () => {
+    const server = app.listen(port, '0.0.0.0', () => {
       console.log(`✅ MWCA Grievance System running with SQLite on http://localhost:${port}`);
       console.log(`💾 Connected SQLite database: ${databasePath}`);
       console.log(`📊 API Documentation: http://localhost:${port}/api/docs`);

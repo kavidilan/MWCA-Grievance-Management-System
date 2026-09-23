@@ -4,7 +4,7 @@
   "description": "Node.js and SQLite API for the MWCA Grievance Management System",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node --watch server.js",
     "dev": "node --watch server.js",
     "seed": "node database/seed.js",
     "seed:mongo": "node database/seed-mongo.js"

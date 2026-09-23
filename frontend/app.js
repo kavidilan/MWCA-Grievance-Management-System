@@ -1093,12 +1093,67 @@ function openCase(ref) {
 
 $('#closeDialog').onclick = () => $('#caseDialog').close();
 
+let emailNewFiles = [];
+
+function renderEmailNewFilesPreview() {
+  const previewContainer = $('#emailNewAttachmentPreview');
+  if (!previewContainer) return;
+  if (!emailNewFiles.length) {
+    previewContainer.innerHTML = '';
+    return;
+  }
+  previewContainer.innerHTML = emailNewFiles.map((f, idx) => `
+    <div style="display:inline-flex;align-items:center;gap:6px;background:#e2e8f0;padding:4px 8px;border-radius:6px;font-size:0.8rem;border:1px solid #cbd5e1;color:#1e293b">
+      <span>📎 <strong>${esc(f.name)}</strong> (${(f.size / 1024).toFixed(1)} KB)</span>
+      <button type="button" class="remove-email-file-btn" data-index="${idx}" style="background:none;border:none;color:#ef4444;font-weight:bold;cursor:pointer;padding:0 4px;font-size:0.9rem" title="Remove attachment">✕</button>
+    </div>
+  `).join('');
+
+  previewContainer.querySelectorAll('.remove-email-file-btn').forEach(btn => {
+    btn.onclick = (e) => {
+      const idx = parseInt(e.currentTarget.dataset.index, 10);
+      if (!isNaN(idx)) {
+        emailNewFiles.splice(idx, 1);
+        renderEmailNewFilesPreview();
+      }
+    };
+  });
+}
+
+const emailNewAttachmentInput = $('#emailNewAttachmentInput');
+if (emailNewAttachmentInput) {
+  emailNewAttachmentInput.onchange = (e) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    if (!selectedFiles.length) return;
+    let loaded = 0;
+    selectedFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        emailNewFiles.push({
+          name: file.name,
+          size: file.size,
+          type: file.type || 'application/octet-stream',
+          dataUrl: event.target.result
+        });
+        loaded++;
+        if (loaded === selectedFiles.length) {
+          renderEmailNewFilesPreview();
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+}
+
 // Email Referral Action Button
 const sendEmailBtn = $('#sendEmailBtn');
 if (sendEmailBtn) {
   sendEmailBtn.onclick = () => {
     if (!selected) return;
     emailReminderMode = false;
+    emailNewFiles = [];
+    renderEmailNewFilesPreview();
     const targetDept = $('#dialogAssignee').value || selected.assigned || 'Assigned Department';
     const targetEmail = $('#dialogRecipientEmail').value || selected.recipientEmail || defaultDepartmentEmails[targetDept] || '';
 
@@ -1109,22 +1164,44 @@ if (sendEmailBtn) {
 
     $('#emailTargetDept').value = targetDept;
     $('#emailTargetAddr').value = targetEmail;
-    $('#emailSubject').value = `[MWCA Grievance Referral] ${selected.ref} – ${selected.subcategory || selected.subject}`;
-    $('#emailNote').value = `Please assess and process official MWCA grievance ${selected.ref} regarding ${selected.subject}.`;
+    $('#emailNote').value = ``;
+    if ($('#emailLanguageSelect')) $('#emailLanguageSelect').value = 'si';
+    updateEmailSubjectByLanguage();
 
     const attachNotice = $('#emailAttachmentNotice');
     if (attachNotice) {
       const attachmentNames = selected.attachments?.length ? selected.attachments.map(attachment => attachment.name) : (selected.attachmentName ? [selected.attachmentName] : []);
-      attachNotice.innerHTML = attachmentNames.length ? `📎 Documents Included: <strong>${attachmentNames.map(esc).join(', ')}</strong>` : '📎 No documents attached to this grievance';
+      attachNotice.innerHTML = attachmentNames.length ? `📎 Existing Documents Included: <strong>${attachmentNames.map(esc).join(', ')}</strong>` : '📎 No existing documents attached to this grievance';
     }
 
     $('#emailDialog').showModal();
   };
 }
 
+function updateEmailSubjectByLanguage() {
+  if (!selected) return;
+  const lang = $('#emailLanguageSelect') ? $('#emailLanguageSelect').value : 'si';
+  if (emailReminderMode) {
+    $('#emailSubject').value = (lang === 'si')
+      ? `ප්‍රමාද වූ පැමිණිලි මතක් කිරීම - ${selected.ref}`
+      : `Overdue Reminder - ${selected.ref} – ${selected.subcategory || selected.subject}`;
+  } else {
+    $('#emailSubject').value = (lang === 'si')
+      ? `මහජන පැමිණිලි ,දුක්ගැනවිලි සහ ඉල්ලීම්`
+      : `Grievance Referral - ${selected.ref} – ${selected.subcategory || selected.subject}`;
+  }
+}
+
+const emailLangSelect = $('#emailLanguageSelect');
+if (emailLangSelect) {
+  emailLangSelect.onchange = updateEmailSubjectByLanguage;
+}
+
 if ($('#sendReminderBtn')) $('#sendReminderBtn').onclick = () => {
   if (!selected || !isOverdue(selected)) return;
   emailReminderMode = true;
+  emailNewFiles = [];
+  renderEmailNewFilesPreview();
   const targetDept = $('#dialogAssignee').value || selected.assigned || '';
   const targetEmail = $('#dialogRecipientEmail').value || selected.recipientEmail || defaultDepartmentEmails[targetDept] || '';
   if (!targetDept || !targetEmail) {
@@ -1133,7 +1210,8 @@ if ($('#sendReminderBtn')) $('#sendReminderBtn').onclick = () => {
   }
   $('#emailTargetDept').value = targetDept;
   $('#emailTargetAddr').value = targetEmail;
-  $('#emailSubject').value = `[MWCA Overdue Reminder] ${selected.ref} – ${selected.subcategory || selected.subject}`;
+  if ($('#emailLanguageSelect')) $('#emailLanguageSelect').value = 'si';
+  updateEmailSubjectByLanguage();
   $('#emailNote').value = `Reminder: grievance ${selected.ref} is overdue. Please provide an action update to MWCA.`;
   $('#emailDialog').showModal();
 };
@@ -1148,6 +1226,7 @@ if (emailForm) {
     const targetDept = $('#emailTargetDept').value.trim();
     const targetEmail = $('#emailTargetAddr').value.trim();
     const note = $('#emailNote').value.trim();
+    const language = $('#emailLanguageSelect') ? $('#emailLanguageSelect').value : 'si';
     const submitBtn = $('#dispatchEmailSubmitBtn');
 
     if (!targetDept) {
@@ -1166,11 +1245,16 @@ if (emailForm) {
         const response = await fetch(`${API_ROOT}/grievances/${selected.id}/send-email`, {
           method: 'POST',
           headers: authHeaders({ 'Content-Type': 'application/json' }),
-          body: JSON.stringify({ recipientEmail: targetEmail, departmentName: targetDept, note, reminder: emailReminderMode })
+          body: JSON.stringify({ recipientEmail: targetEmail, departmentName: targetDept, note, subject: $('#emailSubject') ? $('#emailSubject').value.trim() : undefined, language, reminder: emailReminderMode, newAttachments: emailNewFiles })
         });
         const contentType = response.headers.get('content-type') || '';
         const result = contentType.includes('application/json') ? await response.json() : { message: 'Server returned a non-JSON response.' };
         if (!response.ok) throw new Error(result.message || 'Email dispatch failed.');
+
+        if (emailNewFiles.length && selected) {
+          selected.attachments = [...(selected.attachments || []), ...emailNewFiles];
+        }
+
         await loadDatabaseGrievances();
 
         if (result.isTestAccount) {
@@ -1182,11 +1266,16 @@ if (emailForm) {
         selected.status = 'Forwarded';
         selected.assigned = targetDept;
         selected.recipientEmail = targetEmail;
+        if (emailNewFiles.length) {
+          selected.attachments = [...(selected.attachments || []), ...emailNewFiles];
+        }
         save();
         renderAll();
         renderKanban();
         notify(`✉ Referral recorded for ${targetDept}`);
       }
+      emailNewFiles = [];
+      renderEmailNewFilesPreview();
       $('#emailDialog').close();
       $('#caseDialog').close();
       emailReminderMode = false;

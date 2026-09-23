@@ -457,7 +457,9 @@ router.post('/', authorize('ADMIN', 'OFFICER'), async (req, res, next) => {
 
 router.post('/:id/send-email', authorize('ADMIN', 'OFFICER'), async (req, res, next) => {
   try {
-    const { recipientEmail, recipientEmails, departmentName, note, reminder, simulate = false } = req.body;
+    const { recipientEmail, recipientEmails, departmentName, note, reminder, newAttachments, attachments, language = 'si', simulate = false } = req.body;
+    const isSinhala = (language !== 'en');
+
     const row = await get('SELECT * FROM grievances WHERE id = ? OR reference_number = ?', [Number(req.params.id) || -1, req.params.id]);
     if (!row) return res.status(404).json({ message: 'Grievance not found.' });
 
@@ -470,6 +472,22 @@ router.post('/:id/send-email', authorize('ADMIN', 'OFFICER'), async (req, res, n
     }
     const previousStatus = row.status;
 
+    // Parse incoming new attachments for email & DB persistence
+    const incomingNewAtts = Array.isArray(newAttachments) ? newAttachments : (Array.isArray(attachments) ? attachments : []);
+    const parsedNewMailAtts = incomingNewAtts.map(att => {
+      if (!att || !att.name) return null;
+      const dataStr = att.dataUrl || att.data;
+      if (dataStr) {
+        const match = String(dataStr).match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          return { filename: att.name, contentType: att.type || att.contentType || match[1], content: Buffer.from(match[2], 'base64') };
+        }
+      } else if (att.content && typeof att.content === 'string') {
+        return { filename: att.name, contentType: att.type || att.contentType || 'application/octet-stream', content: Buffer.from(att.content, 'base64') };
+      }
+      return null;
+    }).filter(Boolean);
+
     const recDate = row.received_at || row.created_at;
     let formattedDate = 'Not recorded';
     if (recDate) {
@@ -479,43 +497,139 @@ router.post('/:id/send-email', authorize('ADMIN', 'OFFICER'), async (req, res, n
       }
     }
 
-    const emailSubject = `[MWCA ${reminder ? 'Overdue Reminder' : 'Grievance Referral'}] ${row.reference_number} – ${row.subcategory || row.subject}`;
+    const titleText = isSinhala
+      ? (reminder ? 'ප්‍රමාද වූ පැමිණිලි මතක් කිරීම' : 'මහජන පැමිණිලි ,දුක්ගැනවිලි සහ ඉල්ලීම්')
+      : (reminder ? 'Overdue Reminder' : 'Grievance Referral');
+
+    const emailSubject = req.body.subject || (isSinhala
+      ? (reminder ? `ප්‍රමාද වූ පැමිණිලි මතක් කිරීම - ${row.reference_number}` : 'මහජන පැමිණිලි ,දුක්ගැනවිලි සහ ඉල්ලීම්')
+      : (reminder ? `Overdue Reminder - ${row.reference_number}` : `Grievance Referral - ${row.reference_number}${row.subcategory || row.subject ? ' – ' + (row.subcategory || row.subject) : ''}`));
+
+    const ministryName = isSinhala ? 'කාන්තා හා ළමා කටයුතු අමාත්‍යාංශය' : 'Ministry of Women and Child Affairs';
+    const greetingText = isSinhala ? 'ගරු මහත්මයා/මහත්මියනි,' : 'Dear Sir/Madam,';
+    const introText = isSinhala
+      ? (reminder
+          ? `මෙය ඔබ කාර්යාලය වෙත යොමු කරන ලද <strong>${escHtml(row.reference_number)}</strong> දැරූ කාන්තා හා ළමා කටයුතු අමාත්‍යාංශයේ නිල පැමිණිල්ල සම්බන්ධයෙන් වූ හදිසි මතක් කිරීමකි.`
+          : `කාන්තා හා ළමා කටයුතු අමාත්‍යාංශය මගින් අවශ්‍ය සමාලෝචනය සහ ඉදිරි පියවර ගැනීම සඳහා පැමිණිල්ලක්/දුක්ගැනවිල්ලක් ඔබ කාර්යාලය වෙත යොමු කර ඇත.`)
+      : (reminder
+          ? `This is an urgent reminder regarding official MWCA grievance <strong>${escHtml(row.reference_number)}</strong> referred to your office.`
+          : `A grievance has been referred to your office by the Ministry of Women and Child Affairs for necessary review and action.`);
+
+    const detailsTitle = isSinhala ? 'පැමිණිලි විස්තර' : 'Grievance Details';
+    const labelRef = isSinhala ? 'යොමු අංකය' : 'Reference No.';
+    const labelCat = isSinhala ? 'ප්‍රධාන වර්ගීකරණය' : 'Category';
+    const labelSubcat = isSinhala ? 'අනු වර්ගීකරණය' : 'Subcategory';
+    const labelPriority = isSinhala ? 'ප්‍රමුඛතාව' : 'Priority';
+    const labelDate = isSinhala ? 'ලැබුණු දිනය' : 'Date Received';
+    const labelReferred = isSinhala ? 'යොමු කළ අංශය / දෙපාර්තමේන්තුව' : 'Referred To';
+
+    const noteTitle = isSinhala ? 'උපදෙස් / කරුණු පැහැදිලි කිරීම්' : 'Instructions / Context';
+    const actionTitle = isSinhala ? 'අවශ්‍ය ඉදිරි පියවර' : 'Action Required';
+    const actionText = isSinhala
+      ? `කරුණාකර මෙම පැමිණිල්ල සහ අමුණා ඇති ලේඛන පරීක්ෂා කර අදාළ ක්‍රියාපටිපාටීන්ට අනුකූලව අවශ්‍ය ඉදිරි පියවර ගන්න. මෙම පැමිණිල්ලට අදාළ සියලුම ලිපිගොනු සඳහා යොමු අංකය <strong>${escHtml(row.reference_number)}</strong> සඳහන් කිරීමට කාරුණික වන්න.`
+      : `Kindly review the grievance and the attached documents and take the necessary action in accordance with the relevant procedures. Please quote reference number <strong>${escHtml(row.reference_number)}</strong> in all correspondence related to this grievance.`;
+
+    const thanksText = isSinhala ? 'ස්තුතියි,' : 'Thank you.';
+    const footerSystem = isSinhala ? 'මහජන පැමිණිලි සහ දුක්ගැනවිලි කළමනාකරණ පද්ධතිය' : 'Grievance Management System';
+    const footerDept = isSinhala ? 'පාලන අංශය' : 'Administration Division';
+    const footerMinistry = isSinhala ? 'කාන්තා හා ළමා කටයුතු අමාත්‍යාංශය' : 'Ministry of Women and Child Affairs';
+
+    const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 24px; }
+    .card { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
+    .header { background: ${reminder ? '#dc2626' : '#6758d8'}; color: #ffffff; padding: 24px 28px; }
+    .header h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.2px; }
+    .header p { margin: 4px 0 0; opacity: 0.9; font-size: 13px; }
+    .body { padding: 28px; font-size: 14.5px; line-height: 1.6; color: #334155; }
+    .details-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 18px 0 22px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; }
+    .details-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; }
+    .details-table tr:last-child td { border-bottom: none; }
+    .label { width: 140px; font-weight: 600; color: #64748b; }
+    .val { font-weight: 600; color: #0f172a; }
+    .action { background: #eff6ff; border-left: 4px solid #2563eb; padding: 14px 16px; border-radius: 0 8px 8px 0; margin: 20px 0; }
+    .action h4 { margin: 0 0 4px; color: #1e40af; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .action p { margin: 0; font-size: 13.5px; color: #1e3a8a; }
+    .note { background: #fefce8; border-left: 4px solid #eab308; padding: 14px 16px; border-radius: 0 8px 8px 0; margin: 18px 0; }
+    .note h4 { margin: 0 0 4px; color: #854d0e; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .note p { margin: 0; font-size: 13.5px; color: #713f12; white-space: pre-wrap; }
+    .footer { padding: 20px 28px; background: #f8fafc; border-top: 1px solid #e2e8f0; font-size: 13px; color: #64748b; }
+    .footer strong { color: #1e293b; display: block; margin-bottom: 2px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h1><b>${titleText}</b></h1>
+      <p>${ministryName}</p>
+    </div>
+    <div class="body">
+      <p>${greetingText}</p>
+      <p>${introText}</p>
+      
+      <h3 style="font-size:13.5px;font-weight:700;color:#1e1b4b;text-transform:uppercase;letter-spacing:0.5px;margin:22px 0 8px;">${detailsTitle}</h3>
+      <table class="details-table">
+        <tr><td class="label">${labelRef}</td><td class="val"><strong>${escHtml(row.reference_number)}</strong></td></tr>
+        <tr><td class="label">${labelCat}</td><td class="val">${escHtml(isSinhala ? (row.category === 'Child' ? 'ළමා අංශය (Child)' : (row.category === 'Women' ? 'කාන්තා අංශය (Women)' : row.category)) : row.category)}</td></tr>
+        <tr><td class="label">${labelSubcat}</td><td class="val">${escHtml(isSinhala ? (row.subcategory || 'සාමාන්‍ය විමසීම්') : (row.subcategory || 'General Inquiry'))}</td></tr>
+        <tr><td class="label">${labelPriority}</td><td class="val">${escHtml(isSinhala ? (row.priority === 'Critical' ? 'අතිශය හදිසි (Critical)' : (row.priority === 'High' ? 'ඉහළ ප්‍රමුඛතාව (High)' : (row.priority === 'Low' ? 'අඩු ප්‍රමුඛතාව (Low)' : 'සාමාන්‍ය (Normal)'))) : (row.priority || 'Normal'))}</td></tr>
+        <tr><td class="label">${labelDate}</td><td class="val">${escHtml(formattedDate)}</td></tr>
+        <tr><td class="label">${labelReferred}</td><td class="val">${escHtml(targetDept)}</td></tr>
+      </table>
+
+      ${note ? `
+      <div class="note">
+        <h4>${noteTitle}</h4>
+        <p>${escHtml(note)}</p>
+      </div>` : ''}
+
+      <div class="action">
+        <h4>${actionTitle}</h4>
+        <p>${actionText}</p>
+      </div>
+
+      <p style="margin-top:24px;margin-bottom:0;">${thanksText}</p>
+    </div>
+    <div class="footer">
+      <strong>${footerSystem}</strong>
+      <div>${footerDept}</div>
+      <div>${footerMinistry}</div>
+    </div>
+  </div>
+</body>
+</html>
+`;
 
     const emailText = [
-      'Dear Sir/Madam,',
+      greetingText,
       '',
-      reminder
-        ? `This is an urgent reminder regarding official MWCA grievance ${row.reference_number} referred to your office.`
-        : 'A grievance has been referred to your office by the Ministry of Women and Child Affairs for necessary review and action.',
+      isSinhala
+        ? (reminder ? `මෙය ඔබ කාර්යාලය වෙත යොමු කරන ලද ${row.reference_number} දැරූ කාන්තා හා ළමා කටයුතු අමාත්‍යාංශයේ නිල පැමිණිල්ල සම්බන්ධයෙන් වූ හදිසි මතක් කිරීමකි.` : 'කාන්තා හා ළමා කටයුතු අමාත්‍යාංශය මගින් අවශ්‍ය සමාලෝචනය සහ ඉදිරි පියවර ගැනීම සඳහා පැමිණිල්ලක්/දුක්ගැනවිල්ලක් ඔබ කාර්යාලය වෙත යොමු කර ඇත.')
+        : (reminder ? `This is an urgent reminder regarding official MWCA grievance ${row.reference_number} referred to your office.` : 'A grievance has been referred to your office by the Ministry of Women and Child Affairs for necessary review and action.'),
       '',
-      'GRIEVANCE DETAILS',
+      detailsTitle,
       '',
-      `Reference No. : ${row.reference_number}`,
-      `Category      : ${row.category}`,
-      `Subcategory   : ${row.subcategory || 'General Inquiry'}`,
-      `Priority      : ${row.priority || 'Normal'}`,
-      `Date Received : ${formattedDate}`,
-      `Referred To   : ${targetDept}`,
+      `${labelRef} : ${row.reference_number}`,
+      `${labelCat}      : ${row.category}`,
+      `${labelSubcat}   : ${row.subcategory || 'General Inquiry'}`,
+      `${labelPriority}      : ${row.priority || 'Normal'}`,
+      `${labelDate} : ${formattedDate}`,
+      `${labelReferred}   : ${targetDept}`,
+      note ? `\n${noteTitle}  : ${note}\n` : '',
+      actionTitle,
       '',
-      'Summary:',
-      note ? `${note}\n\n${row.description || row.subject}` : (row.description || row.subject),
+      actionText.replace(/<[^>]+>/g, ''),
       '',
-      'ACTION REQUIRED',
+      thanksText,
       '',
-      'Kindly review the grievance and the attached documents and take the necessary action in accordance with the relevant procedures.',
-      '',
-      `Please quote the reference number ${row.reference_number} in all correspondence related to this grievance.`,
-      '',
-      'Thank you.',
-      '',
-      'Grievance Management System',
-      'Administration Division',
-      'Ministry of Women and Child Affairs',
-      '',
-      '------------------------------------------------------------',
-      'This is an automated notification generated by the',
-      'MWCA Grievance Management System.'
-    ].join('\n');
+      footerSystem,
+      footerDept,
+      footerMinistry
+    ].filter(Boolean).join('\n');
 
     const { transporter, fromUser, isTestAccount } = await getMailTransporterAsync(simulate);
     try {
@@ -524,7 +638,8 @@ router.post('/:id/send-email', authorize('ADMIN', 'OFFICER'), async (req, res, n
         to: targetEmails,
         subject: emailSubject,
         text: emailText,
-        attachments: [summaryAttachment(row, targetDept, note), ...getAllAttachmentsFromRow(row)].filter(Boolean)
+        html: emailHtml,
+        attachments: [summaryAttachment(row, targetDept, note), ...getAllAttachmentsFromRow(row), ...parsedNewMailAtts].filter(Boolean)
       });
 
     } catch (mailErr) {
@@ -535,14 +650,25 @@ router.post('/:id/send-email', authorize('ADMIN', 'OFFICER'), async (req, res, n
       throw mailErr;
     }
 
+    // Save newly attached documents into grievance's attachments_json in SQLite DB
+    if (incomingNewAtts.length > 0) {
+      let existingAtts = [];
+      try { existingAtts = row.attachments_json ? JSON.parse(row.attachments_json) : []; } catch(e){}
+      const updatedAtts = [...existingAtts, ...incomingNewAtts];
+      await run('UPDATE grievances SET attachments_json = ? WHERE id = ?', [JSON.stringify(updatedAtts), row.id]);
+    }
+
     await run(
       'UPDATE grievances SET recipient_email = ?, recipient_emails = ?, assigned_division = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [targetEmails.join(', '), JSON.stringify(targetEmails), targetDept, 'Forwarded', row.id]
     );
 
+    const newAttNames = incomingNewAtts.map(a => a.name).filter(Boolean);
+    const attSuffix = newAttNames.length ? ` with new document(s): ${newAttNames.join(', ')}` : '';
+
     await run(
       'INSERT INTO case_actions (grievance_id, action_type, previous_status, new_status, note, performed_by, created_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
-      [row.id, reminder ? 'Overdue Reminder Sent' : 'Email Referral Sent', previousStatus, 'Forwarded', `${reminder ? 'Overdue reminder' : 'Official email referral'} sent to ${targetDept} (${targetEmails.join(', ')}). Note: ${note || 'Case forwarded for official action.'}`, req.user.id]
+      [row.id, reminder ? 'Overdue Reminder Sent' : 'Email Referral Sent', previousStatus, 'Forwarded', `${reminder ? 'Overdue reminder' : 'Official email referral'} sent to ${targetDept} (${targetEmails.join(', ')}). Note: ${note || 'Case forwarded for official action.'}${attSuffix}`, req.user.id]
     );
 
     res.json({
@@ -796,15 +922,29 @@ router.patch('/:id', authorize('ADMIN', 'OFFICER'), async (req, res, next) => {
     const updateFields = [];
     const values = [];
 
-    if (req.body.complainant_name || req.body.complainantName) {
+    if (req.body.complainant_name !== undefined || req.body.complainantName !== undefined || req.body.name !== undefined) {
       updateFields.push('complainant_name = ?');
-      values.push(req.body.complainant_name || req.body.complainantName);
+      values.push(req.body.complainant_name || req.body.complainantName || req.body.name || '');
     }
-    if (req.body.category) { updateFields.push('category = ?'); values.push(req.body.category); }
-    if (req.body.subcategory) { updateFields.push('subcategory = ?'); values.push(req.body.subcategory); }
-    if (req.body.assigned_division || req.body.assignedDivision) { updateFields.push('assigned_division = ?'); values.push(req.body.assigned_division || req.body.assignedDivision); }
-    if (req.body.recipient_email || req.body.recipientEmail) { updateFields.push('recipient_email = ?'); values.push(req.body.recipient_email || req.body.recipientEmail); }
-    if (req.body.priority) { updateFields.push('priority = ?'); values.push(req.body.priority); }
+    if (req.body.nic !== undefined) { updateFields.push('nic = ?'); values.push(req.body.nic); }
+    if (req.body.phone !== undefined || req.body.telephone !== undefined) {
+      updateFields.push('telephone = ?');
+      values.push(req.body.phone !== undefined ? req.body.phone : req.body.telephone);
+    }
+    if (req.body.address !== undefined) { updateFields.push('address = ?'); values.push(req.body.address); }
+    if (req.body.district !== undefined) { updateFields.push('district = ?'); values.push(req.body.district); }
+    if (req.body.source !== undefined) { updateFields.push('source = ?'); values.push(req.body.source); }
+    if (req.body.subject !== undefined) { updateFields.push('subject = ?'); values.push(req.body.subject); }
+    if (req.body.description !== undefined) { updateFields.push('description = ?'); values.push(req.body.description); }
+    if (req.body.confidential !== undefined || req.body.confidentiality !== undefined) {
+      updateFields.push('confidentiality = ?');
+      values.push(req.body.confidential !== undefined ? req.body.confidential : req.body.confidentiality);
+    }
+    if (req.body.category !== undefined) { updateFields.push('category = ?'); values.push(req.body.category); }
+    if (req.body.subcategory !== undefined) { updateFields.push('subcategory = ?'); values.push(req.body.subcategory); }
+    if (req.body.assigned_division !== undefined || req.body.assignedDivision !== undefined) { updateFields.push('assigned_division = ?'); values.push(req.body.assigned_division || req.body.assignedDivision); }
+    if (req.body.recipient_email !== undefined || req.body.recipientEmail !== undefined) { updateFields.push('recipient_email = ?'); values.push(req.body.recipient_email || req.body.recipientEmail); }
+    if (req.body.priority !== undefined) { updateFields.push('priority = ?'); values.push(req.body.priority); }
     if (req.body.due_at || req.body.dueAt || req.body.dueDate) {
       updateFields.push('due_at = ?');
       const val = req.body.due_at || req.body.dueAt || req.body.dueDate;
