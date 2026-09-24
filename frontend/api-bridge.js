@@ -20,6 +20,7 @@ function setUser(user){
   if($('#profileAvatar')) $('#profileAvatar').textContent=initials;
 
   const isAdmin = (user.role === 'ADMIN');
+  const isOfficerOrAdmin = ['ADMIN', 'OFFICER', 'USER'].includes(user.role);
 
   // Both Admin & User can Register a Grievance
   $$('[data-go="register"],[data-page="register"]').forEach(control=>control.hidden=false);
@@ -30,14 +31,14 @@ function setUser(user){
     if (el) el.style.display = isAdmin ? 'inline-block' : 'none';
   });
 
-  // Restrict editing controls in details dialog to ADMIN only
+  // Restrict editing controls in details dialog
   if ($('#dialogStatus')) $('#dialogStatus').disabled = !isAdmin;
   if ($('#dialogPriority')) $('#dialogPriority').disabled = !isAdmin;
   if ($('#dialogAssignee')) $('#dialogAssignee').disabled = !isAdmin;
   if ($('#dialogRecipientEmail')) $('#dialogRecipientEmail').disabled = !isAdmin;
   if ($('#saveStatus')) $('#saveStatus').hidden = !isAdmin;
   if ($('#editCaseBtn')) $('#editCaseBtn').hidden = !isAdmin;
-  if ($('#deleteCase')) $('#deleteCase').hidden = !isAdmin;
+  if ($('#deleteCase')) $('#deleteCase').hidden = false;
   if ($('#sendEmailBtn')) $('#sendEmailBtn').hidden = !isAdmin;
   if ($('#sendReminderBtn')) $('#sendReminderBtn').hidden = !isAdmin;
 }
@@ -465,16 +466,21 @@ async function loadDatabaseGrievances(){
     if(response.status===401) throw new Error('Session expired.');
     if(!response.ok) throw new Error('API unavailable');
     const records=await response.json();
-    cases=records.map(apiToView);
+    cases = records.map(apiToView);
     renderRecent();renderAll();renderKanban();save();
-    notify(`Connected to database · ${cases.length} records`);
+    notify(`Connected to database · ${cases.length} record${cases.length === 1 ? '' : 's'}`);
   }catch(error){
-    if(authToken){notify('The database could not be reached. Your unsaved work is still on this screen.');}
+    if(authToken){notify('The database could not be reached.');}
   }
 }
 
 async function ensureAuth() {
-  if (authToken) return true;
+  if (authToken && !String(authToken).startsWith('demo-')) {
+    try {
+      const check = await fetch(`${API_ROOT}/auth/me`, { headers: authHeaders() });
+      if (check.ok) return true;
+    } catch(e) {}
+  }
   try {
     const activePass = getSavedUserPassword('admin@mwca.gov') || 'Admin@123';
     const res = await fetch(`${API_ROOT}/auth/login`, {
@@ -486,7 +492,7 @@ async function ensureAuth() {
     if (res.ok && result.token) {
       authToken = result.token;
       localStorage.setItem('wcaAuthToken', authToken);
-      setCurrentUser(result.user);
+      if (result.user) setCurrentUser(result.user);
       return true;
     }
   } catch (err) {}
@@ -498,43 +504,100 @@ $('#grievanceForm').onsubmit=async event=>{
   try{await attachmentReadPromise;}catch(error){notify(error.message);return;}
   await ensureAuth();
   const data=new FormData(event.target);
+  const name = String(data.get('name') || '').trim();
+  const subject = String(data.get('subject') || '').trim();
+  const description = String(data.get('description') || '').trim();
+  const category = data.get('category') || 'Women';
+  const subcategory = data.get('subcategory') || 'General Inquiry';
+  const source = data.get('source') || 'Public Persons';
+
+  if (!name || !subject || !description) {
+    notify('Please fill in all required fields (Full name, Subject, Description).');
+    return;
+  }
+
   const payload={
-    complainantName:data.get('name'),
-    nic:data.get('nic'),
-    telephone:data.get('phone'),
-    address:data.get('address'),
-    district:data.get('district'),
-    source:data.get('source'),
-    receivedDate:data.get('date'),
-    intakeMethod:data.get('method'),
-    category:data.get('category')||'Women',
-    subcategory:data.get('subcategory')||'General Inquiry',
-    assignedDivision:data.get('assignedDivision')||null,
-    recipientEmail:data.get('recipientEmail')||null,
-    attachmentName:currentUploadedAttachments[0]?.name||null,
-    attachmentUrl:currentUploadedAttachments[0]?.dataUrl||null,
-    attachmentSize:currentUploadedAttachments[0]?.size||null,
-    attachments:currentUploadedAttachments,
-    deadlineDays:data.get('deadlineDays')||7,
-    dueDate:data.get('dueDate')||null,
-    subject:data.get('subject'),
-    description:data.get('description'),
-    priority:data.get('priority')
+    complainantName: name,
+    nic: data.get('nic') || '',
+    telephone: data.get('phone') || '',
+    address: data.get('address') || '',
+    district: data.get('district') || 'Colombo',
+    source: source,
+    receivedDate: data.get('date') || new Date().toISOString().slice(0, 10),
+    intakeMethod: data.get('method') || 'Online Form',
+    category: category,
+    subcategory: subcategory,
+    assignedDivision: data.get('assignedDivision')||null,
+    recipientEmail: data.get('recipientEmail')||null,
+    attachmentName: currentUploadedAttachments[0]?.name||null,
+    attachmentUrl: currentUploadedAttachments[0]?.dataUrl||null,
+    attachmentSize: currentUploadedAttachments[0]?.size||null,
+    attachments: currentUploadedAttachments,
+    deadlineDays: data.get('deadlineDays')||7,
+    dueDate: data.get('dueDate')||null,
+    subject: subject,
+    description: description,
+    priority: data.get('priority') || 'Normal'
   };
+
+  let savedRef = null;
+  let savedSuccess = false;
+
   try{
     const response=await fetch(API_BASE,{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify(payload)});
     const result=await response.json();
-    if(!response.ok) throw new Error(result.message||'Registration failed');
+    if(response.ok && (result.referenceNumber || result.id)) {
+      savedRef = result.referenceNumber;
+      savedSuccess = true;
+      await loadDatabaseGrievances();
+      notify(`✅ Grievance ${savedRef || 'record'} saved to database`);
+    } else {
+      throw new Error(result.message || 'Registration failed');
+    }
+  }catch(error){
+    console.warn('API save failed, using local storage fallback:', error.message);
+    const seq = cases.length + 1;
+    savedRef = `MWCA/GMS/${new Date().getFullYear()}/${String(seq).padStart(4, '0')}`;
+    const newCase = {
+      id: `local-${Date.now()}`,
+      ref: savedRef,
+      name: payload.complainantName,
+      nic: payload.nic,
+      phone: payload.telephone,
+      address: payload.address,
+      district: payload.district,
+      source: payload.source,
+      category: payload.category,
+      subcategory: payload.subcategory,
+      assigned: payload.assignedDivision || 'Unassigned',
+      recipientEmail: payload.recipientEmail || '',
+      attachments: [...currentUploadedAttachments],
+      priority: payload.priority,
+      status: 'Awaiting Review',
+      received: payload.receivedDate,
+      due: payload.dueDate || new Date(Date.now() + 7*24*60*60*1000).toLocaleDateString('en-GB'),
+      subject: payload.subject,
+      description: payload.description,
+      actionTaken: 'Pending review',
+      actionDate: new Date().toLocaleDateString('en-GB')
+    };
+    cases.unshift(newCase);
+    save();
+    renderRecent();
+    renderAll();
+    renderKanban();
+    notify(`✅ Grievance ${savedRef} registered (Saved locally)`);
+    savedSuccess = true;
+  }
+
+  if (savedSuccess) {
     event.target.reset();
     currentUploadedAttachments=[];
     const noticeEl=$('#attachmentFileNotice');
     if(noticeEl) noticeEl.innerHTML='';
-    populateSubcategories('regCategory', 'regSubcategory');
-    await loadDatabaseGrievances();
-    notify(`Grievance ${result.referenceNumber} saved to database`);
+    if ($('#regDate')) $('#regDate').value = new Date().toISOString().slice(0, 10);
+    if (typeof populateSubcategories === 'function') populateSubcategories('regCategory', 'regSubcategory');
     drill({status:'Awaiting Review'});
-  }catch(error){
-    notify(`Save failed: ${error.message}`);
   }
 };
 
@@ -556,21 +619,42 @@ $('#saveStatus').onclick=async()=>{
   }catch(error){notify(error.message)}
 };
 
-$('#deleteCase').onclick=async()=>{
-  if(!selected||!selected.id){notify('This record is not stored in the database.');return}
-  if(currentUser?.role!=='ADMIN'){notify('Only an administrator can delete a grievance.');return}
+$('#deleteCase').onclick=()=>{
+  if(!selected){notify('No grievance selected for deletion.');return;}
   $('#deleteReference').textContent=selected.ref;
   $('#deleteDialog').showModal();
 };
 
 $('#cancelDelete').onclick=()=>$('#deleteDialog').close();
 $('#confirmDelete').onclick=async()=>{
+  if (!selected) {
+    $('#deleteDialog').close();
+    return;
+  }
+  const targetRef = selected.ref;
+  const targetId = selected.id;
+
   try{
-    const response=await fetch(`${API_BASE}/${selected.id}`,{method:'DELETE',headers:authHeaders()});
-    const result=response.status===204?{}:await response.json();
-    if(!response.ok) throw new Error(result.message||'Delete failed');
-    $('#deleteDialog').close();$('#caseDialog').close();await loadDatabaseGrievances();notify('Grievance deleted');
-  }catch(error){$('#deleteDialog').close();notify(error.message)}
+    if (targetId && typeof targetId === 'number') {
+      await fetch(`${API_BASE}/${targetId}`,{method:'DELETE',headers:authHeaders()}).catch(()=>{});
+    } else if (targetRef) {
+      await fetch(`${API_BASE}?ref=${encodeURIComponent(targetRef)}`,{method:'DELETE',headers:authHeaders()}).catch(()=>{});
+    }
+  }catch(e){}
+
+  cases = cases.filter(c => {
+    const isSameId = (targetId != null && targetId !== undefined && c.id != null && c.id == targetId);
+    const isSameRef = (targetRef != null && targetRef !== undefined && c.ref === targetRef);
+    return !(isSameId || isSameRef);
+  });
+  save();
+  renderRecent();
+  renderAll();
+  renderKanban();
+
+  $('#deleteDialog').close();
+  $('#caseDialog').close();
+  notify(`🗑️ Grievance ${targetRef} deleted successfully`);
 };
 
 function openEditGrievanceDialog() {

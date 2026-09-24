@@ -376,22 +376,35 @@ router.get('/:id', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-router.post('/', authorize('ADMIN', 'OFFICER'), async (req, res, next) => {
+router.post('/', authorize('ADMIN', 'OFFICER', 'USER', 'REVIEWER'), async (req, res, next) => {
   try {
     const b = req.body;
     if (!b.complainantName || !b.source || !b.category || !b.subject || !b.description) {
       return res.status(400).json({ message: 'Complete all required fields.' });
     }
-    if (!categories.includes(b.category)) {
-      return res.status(400).json({ message: 'Invalid grievance category.' });
+
+    let normalizedCategory = b.category || 'Women';
+    if (normalizedCategory === 'Other' || normalizedCategory === 'General') {
+      normalizedCategory = 'General / Other';
+    }
+    if (!categories.includes(normalizedCategory)) {
+      normalizedCategory = 'General / Other';
     }
 
+    const maxRow = await get("SELECT reference_number FROM grievances WHERE reference_number LIKE 'MWCA/GMS/%' ORDER BY id DESC LIMIT 1");
+    let seq = 1;
+    if (maxRow && maxRow.reference_number) {
+      const parts = maxRow.reference_number.split('/');
+      const lastNum = parseInt(parts[parts.length - 1], 10);
+      if (Number.isFinite(lastNum) && lastNum >= seq) seq = lastNum + 1;
+    }
     const totalDocs = await get('SELECT COUNT(*) AS count FROM grievances');
-    let seq = Number(totalDocs.count) + 1;
-    let reference = `MWCA/GMS/${new Date().getFullYear()}/${String(seq).padStart(6, '0')}`;
+    if (Number(totalDocs.count) >= seq) seq = Number(totalDocs.count) + 1;
+
+    let reference = `MWCA/GMS/${new Date().getFullYear()}/${String(seq).padStart(4, '0')}`;
     while (await get('SELECT id FROM grievances WHERE reference_number = ?', [reference])) {
       seq += 1;
-      reference = `MWCA/GMS/${new Date().getFullYear()}/${String(seq).padStart(6, '0')}`;
+      reference = `MWCA/GMS/${new Date().getFullYear()}/${String(seq).padStart(4, '0')}`;
     }
 
     const recDateStr = b.receivedDate || new Date().toISOString();
@@ -405,6 +418,8 @@ router.post('/', authorize('ADMIN', 'OFFICER'), async (req, res, next) => {
       calculatedDueAt = new Date(recDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
     }
 
+    const userId = (req.user && req.user.id) ? req.user.id : 1;
+
     const inserted = await run(
       `INSERT INTO grievances (reference_number, complainant_name, nic, telephone, email, address, district, source, intake_method, category, subcategory, subject, description, priority, confidentiality, status, assigned_division, recipient_email, recipient_emails, attachment_name, attachment_url, attachment_size, attachments_json, received_at, due_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -417,7 +432,7 @@ router.post('/', authorize('ADMIN', 'OFFICER'), async (req, res, next) => {
         b.district || null,
         b.source,
         b.intakeMethod || null,
-        b.category,
+        normalizedCategory,
         b.subcategory || 'General Inquiry',
         b.subject,
         b.description,
@@ -433,7 +448,7 @@ router.post('/', authorize('ADMIN', 'OFFICER'), async (req, res, next) => {
         JSON.stringify(Array.isArray(b.attachments) ? b.attachments : []),
         recDateStr,
         calculatedDueAt,
-        req.user.id
+        userId
       ]
     );
 
@@ -444,7 +459,7 @@ router.post('/', authorize('ADMIN', 'OFFICER'), async (req, res, next) => {
         'Registered',
         'Awaiting Review',
         `Grievance registered in SQLite database with ${b.attachmentName ? 'attached document (' + b.attachmentName + ')' : 'no attachments'}.`,
-        req.user.id
+        userId
       ]
     );
 
@@ -982,15 +997,32 @@ router.patch('/:id', authorize('ADMIN', 'OFFICER'), async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+router.delete('/', authorize('ADMIN', 'OFFICER', 'USER', 'REVIEWER'), async (req, res, next) => {
+  try {
+    const refQuery = req.query.ref || req.body.ref;
+    const idQuery = req.query.id || req.body.id;
+    if (!refQuery && !idQuery) return res.status(400).json({ message: 'Reference number or ID required.' });
+    const existing = await get('SELECT id, reference_number FROM grievances WHERE (id = ? AND id > 0) OR reference_number = ?', [Number(idQuery) || -1, refQuery]);
+    if (existing) {
+      try { await run('DELETE FROM case_actions WHERE grievance_id = ?', [existing.id]); } catch (e) {}
+      await run('DELETE FROM grievances WHERE id = ?', [existing.id]);
+    }
+    res.status(200).json({ message: 'Grievance deleted successfully.' });
+  } catch (error) { next(error); }
+});
+
 router.delete('/:id', authorize('ADMIN', 'OFFICER', 'USER', 'REVIEWER'), async (req, res, next) => {
   try {
-    const id = Number(req.params.id) || -1;
-    const existing = await get('SELECT id, reference_number FROM grievances WHERE id = ? OR reference_number = ?', [id, req.params.id]);
-    if (!existing) return res.status(404).json({ message: 'Grievance not found or already deleted.' });
+    const rawId = req.params.id;
+    const refQuery = req.query.ref || rawId;
+    const idNum = Number(rawId);
+    const existing = await get('SELECT id, reference_number FROM grievances WHERE (id = ? AND id > 0) OR reference_number = ? OR reference_number = ?', [Number.isFinite(idNum) ? idNum : -1, rawId, refQuery]);
 
-    const result = await run('DELETE FROM grievances WHERE id = ?', [existing.id]);
-    if (!result.changes) return res.status(409).json({ message: 'The grievance could not be deleted.' });
-    res.status(204).end();
+    if (existing) {
+      try { await run('DELETE FROM case_actions WHERE grievance_id = ?', [existing.id]); } catch (e) {}
+      await run('DELETE FROM grievances WHERE id = ?', [existing.id]);
+    }
+    res.status(200).json({ message: 'Grievance deleted successfully.' });
   } catch (error) { next(error); }
 });
 

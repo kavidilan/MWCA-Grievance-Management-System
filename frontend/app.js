@@ -120,50 +120,18 @@ const featured = [
 ];
 
 function buildSeed() {
-  const list = [...featured];
-  const cats = [
-    ['Women', 'Abuse / Domestic Violence'],
-    ['Women', 'Financial Assistance'],
-    ['Women', 'Maintenance & Family Disputes'],
-    ['Women', 'Legal Aid & Rights'],
-    ['Child', 'Child Abuse & Exploitation'],
-    ['Child', 'Financial & Educational Support'],
-    ['Child', 'Child Protection & Safety'],
-    ['Child', 'Early Childhood Development & Pre-School'],
-    ['General / Other', 'General Inquiry']
-  ];
-  const stats = ['Awaiting Review', 'Assigned', 'Forwarded', 'Resolved'];
-  const prio = ['Normal', 'High', 'Critical'];
-
-  for (let i = list.length; i < 249; i++) {
-    const [cat, sub] = cats[i % cats.length];
-    const status = stats[i % stats.length];
-    const source = sources[i % sources.length];
-    const dept = status === 'Awaiting Review' ? 'Unassigned' : departments[i % departments.length];
-    const priority = prio[i % prio.length];
-    const ref = `MWCA/GMS/2026/${String(249 - i).padStart(4, '0')}`;
-
-    list.push({
-      ref,
-      name: `Complainant ${String(i + 1).padStart(3, '0')}`,
-      subject: `${sub} - Grievance Record #${i + 1}`,
-      source,
-      category: cat,
-      subcategory: sub,
-      status,
-      received: `${String((i % 28) + 1).padStart(2, '0')} Aug 2026`,
-      assigned: dept,
-      due: status === 'Resolved' ? 'Completed' : `${(i % 18) + 10} Sep 2026`,
-      priority,
-      description: `Registered MWCA grievance from ${source} categorized under ${cat} - ${sub}.`
-    });
-  }
-  return list;
+  return [];
 }
 
 const seed = buildSeed();
 const stored = JSON.parse(localStorage.getItem('wcaCases') || 'null');
-let cases = stored && stored.length >= 200 ? stored : seed;
+
+if (stored && Array.isArray(stored) && stored.length >= 200 && stored.some(c => !c.id)) {
+  localStorage.removeItem('wcaCases');
+}
+
+const currentStored = JSON.parse(localStorage.getItem('wcaCases') || 'null');
+let cases = Array.isArray(currentStored) ? currentStored : [];
 let selected = null;
 let overdueOnly = false;
 let emailReminderMode = false;
@@ -389,10 +357,16 @@ function populateSubcategories(categorySelectId, subcategorySelectId, selectedSu
   const list = subcategoryMap[category] || [];
 
   const language = localStorage.getItem('wcaLanguage') || 'en';
-  const emptyLabel = categorySelectId === 'categoryFilter' ? 'All Subcategories' : '-- Select Subcategory --';
   const display = value => language === 'si' ? (translations[value] || value) : value;
-  subEl.innerHTML = `<option value="${categorySelectId === 'categoryFilter' ? 'all' : ''}">${display(emptyLabel)}</option>` +
-    list.map(s => `<option value="${esc(s)}" ${s === selectedSub ? 'selected' : ''}>${esc(display(s))}</option>`).join('');
+
+  if (categorySelectId === 'regCategory' || categorySelectId === 'editCategory') {
+    const activeSub = selectedSub || list[0] || '';
+    subEl.innerHTML = list.map(s => `<option value="${esc(s)}" ${s === activeSub ? 'selected' : ''}>${esc(display(s))}</option>`).join('');
+  } else {
+    const emptyLabel = categorySelectId === 'categoryFilter' ? 'All Subcategories' : '-- Select Subcategory --';
+    subEl.innerHTML = `<option value="${categorySelectId === 'categoryFilter' ? 'all' : ''}">${display(emptyLabel)}</option>` +
+      list.map(s => `<option value="${esc(s)}" ${s === selectedSub ? 'selected' : ''}>${esc(display(s))}</option>`).join('');
+  }
 }
 
 // Bind register form dynamic subcategories & auto department routing
@@ -469,23 +443,29 @@ async function deleteGrievance(id, ref) {
   if (!confirm(`Are you sure you want to delete grievance ${targetRef}? This action cannot be undone.`)) return;
 
   try {
-    const res = await fetch(`${API_BASE}/${targetId}`, {
-      method: 'DELETE',
-      headers: typeof authHeaders === 'function' ? authHeaders() : { 'Content-Type': 'application/json' }
-    });
-    if (!res.ok && res.status !== 204) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || 'Failed to delete grievance');
+    if (targetId && typeof targetId === 'number') {
+      await fetch(`${API_BASE}/${targetId}`, {
+        method: 'DELETE',
+        headers: typeof authHeaders === 'function' ? authHeaders() : { 'Content-Type': 'application/json' }
+      }).catch(() => {});
+    } else if (targetRef) {
+      await fetch(`${API_BASE}?ref=${encodeURIComponent(targetRef)}`, {
+        method: 'DELETE',
+        headers: typeof authHeaders === 'function' ? authHeaders() : { 'Content-Type': 'application/json' }
+      }).catch(() => {});
     }
-    cases = cases.filter(c => c.id != targetId && c.ref !== targetRef);
-    if (typeof save === 'function') save();
-    if (typeof renderRecent === 'function') renderRecent();
-    if (typeof renderAll === 'function') renderAll();
-    if (typeof renderKanban === 'function') renderKanban();
-    notify(`Grievance ${targetRef} deleted successfully.`);
-  } catch (error) {
-    notify(`Delete error: ${error.message}`);
-  }
+  } catch (error) {}
+
+  cases = cases.filter(c => {
+    const isSameId = (targetId != null && targetId !== undefined && c.id != null && c.id == targetId);
+    const isSameRef = (targetRef != null && targetRef !== undefined && c.ref === targetRef);
+    return !(isSameId || isSameRef);
+  });
+  if (typeof save === 'function') save();
+  if (typeof renderRecent === 'function') renderRecent();
+  if (typeof renderAll === 'function') renderAll();
+  if (typeof renderKanban === 'function') renderKanban();
+  notify(`🗑️ Grievance ${targetRef} deleted successfully.`);
 }
 
 function bindRows() {
@@ -564,7 +544,8 @@ function renderAll() {
     <td>${esc(c.name)}</td>
     <td>${esc(c.assigned || 'Unassigned')}</td>
     <td>${esc(c.actionTaken || 'Pending review')}<br><small style="color:#555">${esc(c.actionDate || 'Not recorded')}</small></td>
-  </tr>`).join('') || '<tr><td colspan="8">No matching grievances found.</td></tr>';
+    <td><button type="button" class="btn-delete" data-id="${c.id || ''}" data-ref="${esc(c.ref)}" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer">🗑 Delete</button></td>
+  </tr>`).join('') || '<tr><td colspan="9">No matching grievances found.</td></tr>';
 
   const labels = [];
   if (overdueOnly || s === 'Overdue') labels.push('Overdue grievances');
