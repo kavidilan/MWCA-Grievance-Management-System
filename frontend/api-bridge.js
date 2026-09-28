@@ -550,44 +550,12 @@ $('#grievanceForm').onsubmit=async event=>{
       savedRef = result.referenceNumber;
       savedSuccess = true;
       await loadDatabaseGrievances();
-      notify(`✅ Grievance ${savedRef || 'record'} saved to database`);
+      notify(`💾 Saved to SQLite Database (${savedRef || 'record'})`);
     } else {
       throw new Error(result.message || 'Registration failed');
     }
   }catch(error){
-    console.warn('API save failed, using local storage fallback:', error.message);
-    const seq = cases.length + 1;
-    savedRef = `MWCA/GMS/${new Date().getFullYear()}/${String(seq).padStart(4, '0')}`;
-    const newCase = {
-      id: `local-${Date.now()}`,
-      ref: savedRef,
-      name: payload.complainantName,
-      nic: payload.nic,
-      phone: payload.telephone,
-      address: payload.address,
-      district: payload.district,
-      source: payload.source,
-      category: payload.category,
-      subcategory: payload.subcategory,
-      assigned: payload.assignedDivision || 'Unassigned',
-      recipientEmail: payload.recipientEmail || '',
-      attachments: [...currentUploadedAttachments],
-      priority: payload.priority,
-      status: 'Awaiting Review',
-      received: payload.receivedDate,
-      due: payload.dueDate || new Date(Date.now() + 7*24*60*60*1000).toLocaleDateString('en-GB'),
-      subject: payload.subject,
-      description: payload.description,
-      actionTaken: 'Pending review',
-      actionDate: new Date().toLocaleDateString('en-GB')
-    };
-    cases.unshift(newCase);
-    save();
-    renderRecent();
-    renderAll();
-    renderKanban();
-    notify(`✅ Grievance ${savedRef} registered (Saved locally)`);
-    savedSuccess = true;
+    notify(`Save failed: ${error.message}`);
   }
 
   if (savedSuccess) {
@@ -635,6 +603,7 @@ $('#confirmDelete').onclick=async()=>{
   const targetId = selected.id;
 
   try{
+    await ensureAuth();
     if (targetId && typeof targetId === 'number') {
       await fetch(`${API_BASE}/${targetId}`,{method:'DELETE',headers:authHeaders()}).catch(()=>{});
     } else if (targetRef) {
@@ -642,6 +611,7 @@ $('#confirmDelete').onclick=async()=>{
     }
   }catch(e){}
 
+  await loadDatabaseGrievances();
   cases = cases.filter(c => {
     const isSameId = (targetId != null && targetId !== undefined && c.id != null && c.id == targetId);
     const isSameRef = (targetRef != null && targetRef !== undefined && c.ref === targetRef);
@@ -654,7 +624,7 @@ $('#confirmDelete').onclick=async()=>{
 
   $('#deleteDialog').close();
   $('#caseDialog').close();
-  notify(`🗑️ Grievance ${targetRef} deleted successfully`);
+  notify(`🗑️ Deleted from SQLite Database (${targetRef})`);
 };
 
 function openEditGrievanceDialog() {

@@ -8,10 +8,21 @@ const authRoutes = require('./routes/auth');
 const settingsRoutes = require('./routes/settings');
 const { ensureDefaultUsers } = require('./auth');
 
+const { setSecurityHeaders, apiLimiter } = require('./middleware/security');
+
 const app = express();
 const port = Number(process.env.PORT) || 3001;
 
-app.use(cors({ origin: process.env.FRONTEND_ORIGIN || true }));
+app.disable('x-powered-by');
+app.use(setSecurityHeaders);
+app.use('/api/', apiLimiter);
+
+app.use(cors({
+  origin: process.env.FRONTEND_ORIGIN || true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/api/auth', authRoutes);

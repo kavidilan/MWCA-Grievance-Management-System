@@ -319,6 +319,7 @@
           </select>
           <select id="departmentFilter" aria-label="Filter by department">
             <option value="all">සියලුම දෙපාර්තමේන්තු / All Departments</option>
+            <option value="Presidential Secretariat">ජනාධිපති ලේකම් කාර්යාලය (Presidential Secretariat)</option>
             <option value="Minister's Office">අමාත්‍ය කාර්යාලය (Minister's Office)</option>
             <option value="Secretary Office">ලේකම් කාර්යාලය (Secretary Office)</option>
             <option value="Financial">මුදල් අංශය (Financial)</option>
@@ -441,6 +442,7 @@
                     name="assignedDivision" id="regDepartment"
                     placeholder="Type or select any department or ministry (e.g. NCPA, Ministry of Health, Sri Lanka Police)" /><datalist
                     id="departmentSuggestions">
+                    <option value="ජනාධිපති ලේකම් කාර්යාලය (Presidential Secretariat)">ජනාධිපති ලේකම් කාර්යාලය (Presidential Secretariat)</option>
                     <option value="අමාත්‍ය කාර්යාලය (Minister's Office)">අමාත්‍ය කාර්යාලය (Minister's Office)</option>
                     <option value="ලේකම් කාර්යාලය (Secretary Office)">ලේකම් කාර්යාලය (Secretary Office)</option>
                     <option value="මුදල් අංශය (Financial)">මුදල් අංශය (Financial)</option>
@@ -589,8 +591,9 @@
         style="grid-column: span 2">Recipient Department Email <small>(Auto-filled or custom)</small><input type="text"
           id="dialogRecipientEmail" placeholder="one@example.gov, two@example.gov" />
         <div id="dialogQuickContainer"></div>
-      </label><button class="primary" id="saveStatus">Save update</button><button class="secondary" id="editCaseBtn" type="button" style="background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;font-weight:600">✏ Edit Grievance</button><button class="secondary" id="sendEmailBtn"
-        type="button">✉ Send Email
+      </label><button class="primary" id="saveStatus">Save update</button><button class="secondary" id="editCaseBtn"
+        type="button" style="background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;font-weight:600">✏ Edit
+        Grievance</button><button class="secondary" id="sendEmailBtn" type="button">✉ Send Email
         Referral</button><button class="danger-button" id="sendReminderBtn" type="button" hidden>⚠ Send Overdue
         Reminder</button><button class="danger-button" id="deleteCase" type="button">Delete</button></div>
   </dialog>
@@ -611,17 +614,17 @@
           <label>NIC / ID Number<input id="editNic" placeholder="e.g. 199012345678" /></label>
           <label>Contact Phone<input id="editPhone" placeholder="07X XXX XXXX" /></label>
           <label>District<select id="editDistrict">
-            <option>Colombo</option>
-            <option>Gampaha</option>
-            <option>Kalutara</option>
-            <option>Kandy</option>
-            <option>Galle</option>
-            <option>Matara</option>
-            <option>Jaffna</option>
-            <option>Kurunegala</option>
-            <option>Batticaloa</option>
-            <option>Other</option>
-          </select></label>
+              <option>Colombo</option>
+              <option>Gampaha</option>
+              <option>Kalutara</option>
+              <option>Kandy</option>
+              <option>Galle</option>
+              <option>Matara</option>
+              <option>Jaffna</option>
+              <option>Kurunegala</option>
+              <option>Batticaloa</option>
+              <option>Other</option>
+            </select></label>
           <label style="grid-column:span 2">Address<input id="editAddress" placeholder="Address" /></label>
         </div>
       </fieldset>
@@ -630,31 +633,33 @@
         <legend style="font-weight:700;color:#1e293b;padding:0 6px">2. Classification & Routing</legend>
         <div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
           <label>Main Category *<select id="editCategory" required>
-            <option value="Women">Women</option>
-            <option value="Child">Child</option>
-            <option value="General / Other">Other</option>
-          </select></label>
+              <option value="Women">Women</option>
+              <option value="Child">Child</option>
+              <option value="General / Other">Other</option>
+            </select></label>
           <label>Subcategory *<select id="editSubcategory" required></select></label>
           <label>Priority Level<select id="editPriority">
-            <option value="Normal">Normal</option>
-            <option value="High">High</option>
-            <option value="Critical">Urgent</option>
-          </select></label>
+              <option value="Normal">Normal</option>
+              <option value="High">High</option>
+              <option value="Critical">Urgent</option>
+            </select></label>
           <label>Inflow Source<select id="editSource">
-            <option>Written Letter / Postal</option>
-            <option>In-Person Visit</option>
-            <option>Email</option>
-            <option>Telephone Hotline</option>
-            <option>Fax</option>
-          </select></label>
-          <label style="grid-column:span 2">Assign / Forward to Department<input list="departmentSuggestions" id="editAssigned" placeholder="Type or select department or ministry" /></label>
-          <label style="grid-column:span 2">Recipient Department Email<input id="editRecipientEmail" placeholder="one@example.gov, two@example.gov" /></label>
+              <option>Written Letter / Postal</option>
+              <option>In-Person Visit</option>
+              <option>Email</option>
+              <option>Telephone Hotline</option>
+              <option>Fax</option>
+            </select></label>
+          <label style="grid-column:span 2">Assign / Forward to Department<input list="departmentSuggestions"
+              id="editAssigned" placeholder="Type or select department or ministry" /></label>
+          <label style="grid-column:span 2">Recipient Department Email<input id="editRecipientEmail"
+              placeholder="one@example.gov, two@example.gov" /></label>
           <label>Target Resolution Deadline<input type="date" id="editDueDate" /></label>
           <label>Confidentiality Level<select id="editConfidential">
-            <option>Standard</option>
-            <option>Restricted</option>
-            <option>Highly Confidential</option>
-          </select></label>
+              <option>Standard</option>
+              <option>Restricted</option>
+              <option>Highly Confidential</option>
+            </select></label>
         </div>
       </fieldset>
 
@@ -662,7 +667,8 @@
         <legend style="font-weight:700;color:#1e293b;padding:0 6px">3. Subject & Description</legend>
         <div style="display:flex;flex-direction:column;gap:10px">
           <label>Subject / Title *<input id="editSubject" required placeholder="Subject / Title" /></label>
-          <label>Detailed Description *<textarea id="editDescription" rows="4" required placeholder="Full details of grievance..."></textarea></label>
+          <label>Detailed Description *<textarea id="editDescription" rows="4" required
+              placeholder="Full details of grievance..."></textarea></label>
         </div>
       </fieldset>
 
@@ -673,35 +679,108 @@
     </form>
   </dialog>
 
-  <dialog id="emailDialog">
+  <dialog id="emailDialog" style="max-width:840px;width:95%">
     <div class="dialog-head">
       <div><span class="eyebrow">EMAIL REFERRAL DISPATCH</span>
-        <h2>Send Official Referral Email</h2>
+        <h2>Send & Customize Official Referral Email</h2>
+        <p class="dialog-subtitle" style="margin-top:2px;font-size:0.85rem;color:#666">
+          Edit grievance referral details below. The live email preview updates automatically before dispatch.
+        </p>
       </div><button id="closeEmailDialog" aria-label="Close">×</button>
     </div>
-    <form id="emailForm" style="display:flex;flex-direction:column;gap:14px;padding-top:12px">
+    <form id="emailForm" style="display:flex;flex-direction:column;gap:14px;padding:16px 20px">
       <div id="emailSmtpBanner" class="notice" style="background:#eef0f8;border-left:4px solid #6758d8"><strong>Email
           Dispatch Engine</strong>
-        <p>Dispatches grievance details and CSV summary attachments to the designated department.</p>
+        <p>Dispatches grievance details and attached files to the designated department or office.</p>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;background:#f8fafc;padding:10px 14px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:2px">
+      <div
+        style="display:flex;align-items:center;justify-content:space-between;background:#f8fafc;padding:10px 14px;border-radius:8px;border:1px solid #e2e8f0;">
         <label style="font-weight:600;font-size:0.88rem;color:#1e293b;margin:0;display:flex;align-items:center;gap:6px">
           🌐 Email Language / විද්‍යුත් තැපැල් භාෂාව:
         </label>
-        <select id="emailLanguageSelect" style="padding:6px 12px;font-weight:600;font-size:0.88rem;border-radius:6px;border:1px solid #cbd5e1;background:#ffffff;cursor:pointer">
+        <select id="emailLanguageSelect"
+          style="padding:6px 12px;font-weight:600;font-size:0.88rem;border-radius:6px;border:1px solid #cbd5e1;background:#ffffff;cursor:pointer">
           <option value="si" selected>සිංහල (Sinhala)</option>
           <option value="en">English</option>
         </select>
       </div>
-      <label>Target Department / Ministry<input list="departmentSuggestions" id="emailTargetDept"
-          placeholder="Type or select target department or ministry" required /></label><label>Recipient Email Addresses
-        *<input id="emailTargetAddr" type="text" required placeholder="one@example.gov, two@example.gov" />
-        <div id="emailQuickContainer"></div>
-      </label><small>Separate multiple addresses with commas or
-        semicolons.</small><label>Email Subject<input id="emailSubject" readonly
-          style="background:#f4f5f8" /></label><label>Referral Note / Instructions for Department<textarea
-          id="emailNote" rows="4"
-          placeholder="Enter specific instructions, urgency context, or follow-up deadline..."></textarea></label>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;">
+        <h4 style="margin:0 0 12px 0;font-size:0.95rem;color:#1e293b;display:flex;align-items:center;gap:8px">
+          📝 Editable Grievance Referral Details / පැමිණිලි විස්තර සංස්කරණය
+        </h4>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <label>
+            1. යොමු අංකය / Reference No.
+            <input id="emailRefNo" type="text" required placeholder="MWCA/GMS/2026/0008" />
+          </label>
+          <label>
+            2. ලිපියේ මාතෘකාව / Subject
+            <input id="emailSubject" type="text" required placeholder="Domestic" />
+          </label>
+          <label>
+            3. ප්‍රධාන වර්ගීකරණය / Category
+            <select id="emailCategory">
+              <option value="Women">කාන්තා අංශය (Women)</option>
+              <option value="Child">ළමා අංශය (Child)</option>
+              <option value="General / Other">සාමාන්‍ය / වෙනත් (General / Other)</option>
+            </select>
+          </label>
+          <label>
+            4. අනු වර්ගීකරණය / Subcategory
+            <input id="emailSubcategory" type="text" placeholder="Legal Aid & Rights" />
+          </label>
+          <label>
+            5. ප්‍රමුඛතාව / Priority
+            <select id="emailPriority">
+              <option value="Normal">සාමාන්‍ය (Normal)</option>
+              <option value="High">ඉහළ ප්‍රමුඛතාව (High)</option>
+              <option value="Critical">අතිශය හදිසි (Critical)</option>
+              <option value="Low">අඩු ප්‍රමුඛතාව (Low)</option>
+            </select>
+          </label>
+          <label>
+            6. ලැබුණු දිනය / Date Received
+            <input id="emailDateReceived" type="text" placeholder="1 October 2026" />
+          </label>
+          <label>
+            7. යොමු කළ අංශය / කාර්යාලය *
+            <input list="departmentSuggestions" id="emailTargetDept" placeholder="Type or select target department/office" required />
+          </label>
+          <label>
+            8. දුක්ගැනවිල්ල / පැමිණිල්ල යොමු කල පුද්ගලයා *
+            <input id="emailReferredBy" type="text" placeholder="Officer / Referrer Name" required />
+          </label>
+          <label class="full" style="grid-column:1/-1">
+            9. ලබන්නාගේ විද්‍යුත් තැපැල් ලිපිනය (Recipient Email Addresses) *
+            <input id="emailTargetAddr" type="text" required placeholder="kavishkadilshan0626@gmail.com" />
+            <div id="emailQuickContainer"></div>
+            <small style="font-weight:normal;color:#64748b">Separate multiple addresses with commas or semicolons.</small>
+          </label>
+          <label class="full" style="grid-column:1/-1">
+            10. උපදෙස් / කරුණු පැහැදිලි කිරීම් (Instructions / Context)
+            <textarea id="emailNote" rows="2" placeholder="Enter specific instructions or urgency context (e.g. Urgently)..."></textarea>
+          </label>
+          <label class="full" style="grid-column:1/-1">
+            11. පැමිණිල්ලේ සාරාංශය සහ විස්තර (Case Summary & Details)
+            <textarea id="emailSummary" rows="3" placeholder="Enter grievance details/summary..."></textarea>
+          </label>
+        </div>
+      </div>
+
+      <!-- LIVE EMAIL STRUCTURE PREVIEW -->
+      <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:10px;padding:16px;box-shadow:0 4px 12px rgba(0,0,0,0.04)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;border-bottom:1px solid #e2e8f0;padding-bottom:8px">
+          <strong style="font-size:0.9rem;color:#475569;display:flex;align-items:center;gap:6px">
+            👁 Live Editable Email Structure Preview / සජීවී විද්‍යුත් තැපැල් පෙරදසුන
+          </strong>
+          <span style="font-size:0.75rem;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:12px;font-weight:600">Auto-updating</span>
+        </div>
+        <div id="emailLivePreviewBox" style="font-family:'Segoe UI',Helvetica,Arial,sans-serif;background:#f8fafc;padding:16px;border-radius:8px;border:1px solid #e2e8f0;font-size:13.5px;color:#334155">
+        </div>
+      </div>
+
       <div id="emailAttachmentNotice" style="font-size:0.85rem;color:#444"></div>
 
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-top:2px">

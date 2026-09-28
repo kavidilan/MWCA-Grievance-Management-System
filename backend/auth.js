@@ -1,7 +1,12 @@
 const crypto = require('node:crypto');
 const { get, run } = require('./database/database');
 
-const secret = process.env.AUTH_SECRET || 'change-this-mwca-secret';
+const secret = process.env.AUTH_SECRET || (() => {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('❌ CRITICAL SECURITY RISK: AUTH_SECRET environment variable is not defined in production!');
+  }
+  return 'change-this-mwca-secret-key-32-chars-minimum-length-2026';
+})();
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');

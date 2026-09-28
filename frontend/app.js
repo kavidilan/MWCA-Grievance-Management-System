@@ -168,7 +168,7 @@ const translations = {
   'Cancel': 'අවලංගු කරන්න', 'Save profile': 'පැතිකඩ සුරකින්න', 'Select district': 'දිස්ත්‍රික්කය තෝරන්න',
   '1. Intake Source & Details': '1. ලැබුණු මූලාශ්‍රය සහ විස්තර', '2. Complainant Information': '2. පැමිණිලිකරුගේ තොරතුරු',
   '3. Classification & Routing': '3. වර්ගීකරණය සහ යොමු කිරීම', 'Fields marked * are required': '* සලකුණු කළ ක්ෂේත්‍ර අනිවාර්ය වේ',
-  'Public Persons': 'මහජනතාව', 'Presidential Secretariat': 'ජනාධිපති ලේකම් කාර්යාලය',
+  'Public Persons': 'මහජනතාව', 'Presidential Secretariat': 'ජනාධිපති ලේකම් කාර්යාලය', 'ජනාදිපති ලේකම් කාර්යාලය': 'ජනාධිපති ලේකම් කාර්යාලය',
   "Prime Minister's Office": 'අග්‍රාමාත්‍ය කාර්යාලය', 'By Hand': 'පෞද්ගලිකව පැමිණීම',
   'Letter / Dispatch': 'ලිපිය / යොමු කිරීම', 'Email': 'විද්‍යුත් තැපෑල', 'Telephone Hotline': 'දුරකථන හදිසි සේවාව',
   'Online Form': 'මාර්ගගත පෝරමය', 'Normal': 'සාමාන්‍ය', 'High': 'ඉහළ', 'Critical': 'හදිසි',
@@ -440,9 +440,10 @@ async function deleteGrievance(id, ref) {
   const targetRef = g ? g.ref : (ref || id);
   const targetId = g ? g.id : id;
 
-  if (!confirm(`Are you sure you want to delete grievance ${targetRef}? This action cannot be undone.`)) return;
+  if (!confirm(`Are you sure you want to delete grievance ${targetRef} from SQLite database? This action cannot be undone.`)) return;
 
   try {
+    if (typeof ensureAuth === 'function') await ensureAuth();
     if (targetId && typeof targetId === 'number') {
       await fetch(`${API_BASE}/${targetId}`, {
         method: 'DELETE',
@@ -456,6 +457,10 @@ async function deleteGrievance(id, ref) {
     }
   } catch (error) {}
 
+  if (typeof loadDatabaseGrievances === 'function') {
+    await loadDatabaseGrievances();
+  }
+
   cases = cases.filter(c => {
     const isSameId = (targetId != null && targetId !== undefined && c.id != null && c.id == targetId);
     const isSameRef = (targetRef != null && targetRef !== undefined && c.ref === targetRef);
@@ -465,7 +470,7 @@ async function deleteGrievance(id, ref) {
   if (typeof renderRecent === 'function') renderRecent();
   if (typeof renderAll === 'function') renderAll();
   if (typeof renderKanban === 'function') renderKanban();
-  notify(`🗑️ Grievance ${targetRef} deleted successfully.`);
+  notify(`🗑️ Deleted from SQLite Database (${targetRef})`);
 }
 
 function bindRows() {
@@ -720,6 +725,7 @@ function renderKanban() {
 }
 
 const defaultDepartmentEmails = {
+  'Presidential Secretariat': 'info@presidentsoffice.lk, sec@presidentsoffice.lk',
   "Minister's Office": 'minister@mwca.gov.lk, sec.minister@mwca.gov.lk',
   'Secretary Office': 'secretary@mwca.gov.lk, addlsec@mwca.gov.lk',
   'Financial': 'finance@mwca.gov.lk, accounts@mwca.gov.lk',
@@ -731,6 +737,10 @@ const defaultDepartmentEmails = {
   'National Child Protection Authority': 'info@childprotection.gov.lk, ncpa.help@childprotection.gov.lk',
   'Department of Probation and Child Care Service': 'probation@childcare.gov.lk, info@childcare.gov.lk',
 
+  'ජනාධිපති ලේකම් කාර්යාලය': 'info@presidentsoffice.lk, sec@presidentsoffice.lk',
+  'ජනාධිපති ලේකම් කාර්යාලය (Presidential Secretariat)': 'info@presidentsoffice.lk, sec@presidentsoffice.lk',
+  'ජනාදිපති ලේකම් කාර්යාලය': 'info@presidentsoffice.lk, sec@presidentsoffice.lk',
+  'ජනාදිපති ලේකම් කාර්යාලය (Presidential Secretariat)': 'info@presidentsoffice.lk, sec@presidentsoffice.lk',
   'අමාත්‍ය කාර්යාලය': 'minister@mwca.gov.lk, sec.minister@mwca.gov.lk',
   'අමාත්‍ය කාර්යාලය (Minister\'s Office)': 'minister@mwca.gov.lk, sec.minister@mwca.gov.lk',
   'ලේකම් කාර්යාලය': 'secretary@mwca.gov.lk, addlsec@mwca.gov.lk',
@@ -759,7 +769,10 @@ let attachmentReadPromise = Promise.resolve();
 // Dynamic department email autofill helper supporting multiple recipient emails
 function getDepartmentDefaultEmails(deptName) {
   if (!deptName) return '';
-  const trimmed = deptName.trim();
+  let trimmed = deptName.trim();
+  if (trimmed.includes('ජනාදිපති')) {
+    trimmed = trimmed.replaceAll('ජනාදිපති', 'ජනාධිපති');
+  }
   if (defaultDepartmentEmails[trimmed]) return defaultDepartmentEmails[trimmed];
   for (const [key, email] of Object.entries(defaultDepartmentEmails)) {
     if (trimmed.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(trimmed.toLowerCase())) {
@@ -1127,6 +1140,116 @@ if (emailNewAttachmentInput) {
   };
 }
 
+// Live Editable Email Structure Preview Generator
+function updateLiveEmailPreview() {
+  const previewBox = $('#emailLivePreviewBox');
+  if (!previewBox) return;
+
+  const lang = $('#emailLanguageSelect') ? $('#emailLanguageSelect').value : 'si';
+  const isSinhala = (lang === 'si');
+
+  const refNo = $('#emailRefNo') ? $('#emailRefNo').value.trim() : (selected ? (selected.ref || selected.reference_number || '') : '');
+  const subject = $('#emailSubject') ? $('#emailSubject').value.trim() : (selected ? selected.subject || '' : '');
+  const cat = $('#emailCategory') ? $('#emailCategory').value : (selected ? selected.category || 'Women' : 'Women');
+  const subcat = $('#emailSubcategory') ? $('#emailSubcategory').value.trim() : (selected ? selected.subcategory || '' : '');
+  const priority = $('#emailPriority') ? $('#emailPriority').value : (selected ? selected.priority || 'Normal' : 'Normal');
+  const dateRec = $('#emailDateReceived') ? $('#emailDateReceived').value.trim() : (selected ? selected.dateReceived || '' : '');
+  const targetDept = $('#emailTargetDept') ? $('#emailTargetDept').value.trim() : (selected ? selected.assigned || '' : '');
+  const referredBy = $('#emailReferredBy') ? $('#emailReferredBy').value.trim() : (currentUser ? (currentUser.fullName || currentUser.full_name) : 'Kavishka Dilshan');
+  const note = $('#emailNote') ? $('#emailNote').value.trim() : '';
+  const summary = $('#emailSummary') ? $('#emailSummary').value.trim() : (selected ? selected.description || selected.summary || '' : '');
+
+  const titleText = isSinhala
+    ? (emailReminderMode ? 'ප්‍රමාද වූ පැමිණිලි මතක් කිරීම' : 'මහජන පැමිණිලි ,දුක්ගැනවිලි සහ ඉල්ලීම්')
+    : (emailReminderMode ? 'Overdue Reminder' : 'Grievance Referral');
+
+  const ministryName = isSinhala ? 'කාන්තා හා ළමා කටයුතු අමාත්‍යාංශය' : 'Ministry of Women and Child Affairs';
+  const greetingText = isSinhala ? 'ගරු මහත්මයා/මහත්මියනි,' : 'Dear Sir/Madam,';
+  const introText = isSinhala
+    ? (emailReminderMode
+        ? `මෙය ඔබ කාර්යාලය වෙත යොමු කරන ලද <strong>${esc(refNo)}</strong> දැරූ කාන්තා හා ළමා කටයුතු අමාත්‍යාංශයේ නිල පැමිණිල්ල සම්බන්ධයෙන් වූ හදිසි මතක් කිරීමකි.`
+        : `කාන්තා හා ළමා කටයුතු අමාත්‍යාංශය මගින් අවශ්‍ය සමාලෝචනය සහ ඉදිරි පියවර ගැනීම සඳහා පැමිණිල්ලක්/දුක්ගැනවිල්ලක් ඔබ කාර්යාලය වෙත යොමු කර ඇත.`)
+    : (emailReminderMode
+        ? `This is an urgent reminder regarding official MWCA grievance <strong>${esc(refNo)}</strong> referred to your office.`
+        : `A grievance has been referred to your office by the Ministry of Women and Child Affairs for necessary review and action.`);
+
+  const detailsTitle = isSinhala ? 'පැමිණිලි විස්තර' : 'Grievance Details';
+  const labelRef = isSinhala ? 'යොමු අංකය' : 'Reference No.';
+  const labelSubject = isSinhala ? 'ලිපියේ මාතෘකාව / Subject' : 'Subject';
+  const labelSummary = isSinhala ? 'පැමිණිල්ලේ සාරාංශය සහ විස්තර' : 'Case Summary & Details';
+  const labelCat = isSinhala ? 'ප්‍රධාන වර්ගීකරණය' : 'Category';
+  const labelSubcat = isSinhala ? 'අනු වර්ගීකරණය' : 'Subcategory';
+  const labelPriority = isSinhala ? 'ප්‍රමුඛතාව' : 'Priority';
+  const labelDate = isSinhala ? 'ලැබුණු දිනය' : 'Date Received';
+  const labelReferred = isSinhala ? 'යොමු කළ අංශය / කාර්යාලය' : 'Referred Division / Office';
+  const labelReferredBy = isSinhala ? 'දුක්ගැනවිල්ල / පැමිණිල්ල යොමු කල පුද්ගලයා' : 'Referred By (Person)';
+
+  const noteTitle = isSinhala ? 'උපදෙස් / කරුණු පැහැදිලි කිරීම්' : 'Instructions / Context';
+  const actionTitle = isSinhala ? 'අවශ්‍ය ඉදිරි පියවර' : 'Action Required';
+  const actionText = isSinhala
+    ? `කරුණාකර මෙම පැමිණිල්ල සහ අමුණා ඇති ලේඛන පරීක්ෂා කර අදාළ ක්‍රියාපටිපාටීන්ට අනුකූලව අවශ්‍ය ඉදිරි පියවර ගන්න. මෙම පැමිණිල්ලට අදාළ සියලුම ලිපිගොනු සඳහා යොමු අංකය <strong>${esc(refNo)}</strong> සඳහන් කිරීමට කාරුණික වන්න.`
+    : `Kindly review the grievance and the attached documents and take the necessary action in accordance with the relevant procedures. Please quote reference number <strong>${esc(refNo)}</strong> in all correspondence related to this grievance.`;
+
+  const thanksText = isSinhala ? 'ස්තුතියි,' : 'Thank you.';
+  const footerSystem = isSinhala ? 'මහජන පැමිණිලි සහ දුක්ගැනවිලි කළමනාකරණ පද්ධතිය' : 'Grievance Management System';
+  const footerDept = isSinhala ? 'පාලන අංශය' : 'Administration Division';
+  const footerMinistry = isSinhala ? 'කාන්තා හා ළමා කටයුතු අමාත්‍යාංශය' : 'Ministry of Women and Child Affairs';
+
+  const catDisplay = isSinhala ? (cat === 'Child' ? 'ළමා අංශය (Child)' : (cat === 'Women' ? 'කාන්තා අංශය (Women)' : cat)) : cat;
+  const priorityDisplay = isSinhala ? (priority === 'Critical' ? 'අතිශය හදිසි (Critical)' : (priority === 'High' ? 'ඉහළ ප්‍රමුඛතාව (High)' : (priority === 'Low' ? 'අඩු ප්‍රමුඛතාව (Low)' : 'සාමාන්‍ය (Normal)'))) : priority;
+
+  previewBox.innerHTML = `
+    <div style="background:#6758d8;color:#ffffff;padding:16px 20px;border-radius:8px 8px 0 0">
+      <h3 style="margin:0;font-size:18px;font-weight:700">${esc(titleText)}</h3>
+      <p style="margin:4px 0 0;opacity:0.9;font-size:12px">${esc(ministryName)}</p>
+    </div>
+    <div style="padding:20px;background:#ffffff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px">
+      <p style="margin-top:0">${esc(greetingText)}</p>
+      <p>${introText}</p>
+
+      <h4 style="font-size:13px;font-weight:700;color:#1e1b4b;text-transform:uppercase;margin:18px 0 8px">${esc(detailsTitle)}</h4>
+      <table style="width:100%;border-collapse:collapse;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0;font-size:13px">
+        <tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;width:170px;font-weight:600;color:#64748b">${esc(labelRef)}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:700;color:#0f172a">${esc(refNo)}</td></tr>
+        ${subject ? `<tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#64748b">${esc(labelSubject)}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:700;color:#0f172a">${esc(subject)}</td></tr>` : ''}
+        <tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#64748b">${esc(labelCat)}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600">${esc(catDisplay)}</td></tr>
+        <tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#64748b">${esc(labelSubcat)}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600">${esc(subcat || 'General Inquiry')}</td></tr>
+        <tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#64748b">${esc(labelPriority)}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600">${esc(priorityDisplay)}</td></tr>
+        <tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#64748b">${esc(labelDate)}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600">${esc(dateRec || 'Not recorded')}</td></tr>
+        <tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#64748b">${esc(labelReferred)}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#6758d8">${esc(targetDept || 'Department')}</td></tr>
+        <tr><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#64748b">${esc(labelReferredBy)}</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600">${esc(referredBy)}</td></tr>
+        ${summary ? `<tr><td style="padding:8px 12px;font-weight:600;color:#64748b;vertical-align:top">${esc(labelSummary)}</td><td style="padding:8px 12px;white-space:pre-wrap;line-height:1.5">${esc(summary)}</td></tr>` : ''}
+      </table>
+
+      ${note ? `
+      <div style="background:#fefce8;border-left:4px solid #eab308;padding:12px 14px;border-radius:0 6px 6px 0;margin:16px 0">
+        <h4 style="margin:0 0 4px;color:#854d0e;font-size:12px;font-weight:700;text-transform:uppercase">${esc(noteTitle)}</h4>
+        <p style="margin:0;font-size:13px;color:#713f12;white-space:pre-wrap">${esc(note)}</p>
+      </div>` : ''}
+
+      <div style="background:#eff6ff;border-left:4px solid #2563eb;padding:12px 14px;border-radius:0 6px 6px 0;margin:16px 0">
+        <h4 style="margin:0 0 4px;color:#1e40af;font-size:12px;font-weight:700;text-transform:uppercase">${esc(actionTitle)}</h4>
+        <p style="margin:0;font-size:13px;color:#1e3a8a">${actionText}</p>
+      </div>
+
+      <p style="margin-top:20px;margin-bottom:0;color:#64748b">${esc(thanksText)}</p>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b">
+        <strong style="color:#1e293b;display:block">${esc(footerSystem)}</strong>
+        <div>${esc(footerDept)}</div>
+        <div>${esc(footerMinistry)}</div>
+      </div>
+    </div>
+  `;
+}
+
+// Bind live preview listeners on inputs
+['#emailRefNo', '#emailSubject', '#emailCategory', '#emailSubcategory', '#emailPriority', '#emailDateReceived', '#emailTargetDept', '#emailReferredBy', '#emailTargetAddr', '#emailNote', '#emailSummary', '#emailLanguageSelect'].forEach(sel => {
+  const el = $(sel);
+  if (el) {
+    el.addEventListener('input', updateLiveEmailPreview);
+    el.addEventListener('change', updateLiveEmailPreview);
+  }
+});
+
 // Email Referral Action Button
 const sendEmailBtn = $('#sendEmailBtn');
 if (sendEmailBtn) {
@@ -1143,11 +1266,33 @@ if (sendEmailBtn) {
       return;
     }
 
+    if ($('#emailRefNo')) $('#emailRefNo').value = selected.ref || selected.reference_number || '';
+    if ($('#emailSubject')) $('#emailSubject').value = selected.subject || selected.subcategory || `Domestic`;
+    if ($('#emailCategory')) $('#emailCategory').value = selected.category || 'Women';
+    if ($('#emailSubcategory')) $('#emailSubcategory').value = selected.subcategory || 'Legal Aid & Rights';
+    if ($('#emailPriority')) $('#emailPriority').value = selected.priority || 'Normal';
+
+    let formattedDate = 'Not recorded';
+    const recDate = selected.dateReceived || selected.received_at || selected.created_at;
+    if (recDate) {
+      const d = new Date(recDate);
+      if (!isNaN(d.getTime())) {
+        formattedDate = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      } else {
+        formattedDate = String(recDate);
+      }
+    }
+    if ($('#emailDateReceived')) $('#emailDateReceived').value = formattedDate;
+
     $('#emailTargetDept').value = targetDept;
+    if ($('#emailReferredBy')) $('#emailReferredBy').value = (currentUser ? (currentUser.fullName || currentUser.full_name) : null) || selected.referredBy || selected.complainant_name || 'Kavishka Dilshan';
     $('#emailTargetAddr').value = targetEmail;
     $('#emailNote').value = ``;
+    if ($('#emailSummary')) $('#emailSummary').value = selected.description || selected.summary || selected.subject || 'Domestic Violance';
+
     if ($('#emailLanguageSelect')) $('#emailLanguageSelect').value = 'si';
-    updateEmailSubjectByLanguage();
+    
+    updateLiveEmailPreview();
 
     const attachNotice = $('#emailAttachmentNotice');
     if (attachNotice) {
@@ -1163,14 +1308,15 @@ function updateEmailSubjectByLanguage() {
   if (!selected) return;
   const lang = $('#emailLanguageSelect') ? $('#emailLanguageSelect').value : 'si';
   if (emailReminderMode) {
-    $('#emailSubject').value = (lang === 'si')
-      ? `ප්‍රමාද වූ පැමිණිලි මතක් කිරීම - ${selected.ref}`
-      : `Overdue Reminder - ${selected.ref} – ${selected.subcategory || selected.subject}`;
+    if ($('#emailSubject')) $('#emailSubject').value = (lang === 'si')
+      ? `ප්‍රමාද වූ පැමිණිලි මතක් කිරීම - ${$('#emailRefNo') ? $('#emailRefNo').value : selected.ref}`
+      : `Overdue Reminder - ${$('#emailRefNo') ? $('#emailRefNo').value : selected.ref} – ${selected.subcategory || selected.subject}`;
   } else {
-    $('#emailSubject').value = (lang === 'si')
+    if ($('#emailSubject')) $('#emailSubject').value = (lang === 'si')
       ? `මහජන පැමිණිලි ,දුක්ගැනවිලි සහ ඉල්ලීම්`
-      : `Grievance Referral - ${selected.ref} – ${selected.subcategory || selected.subject}`;
+      : `Grievance Referral - ${$('#emailRefNo') ? $('#emailRefNo').value : selected.ref} – ${selected.subcategory || selected.subject}`;
   }
+  updateLiveEmailPreview();
 }
 
 const emailLangSelect = $('#emailLanguageSelect');
@@ -1189,11 +1335,22 @@ if ($('#sendReminderBtn')) $('#sendReminderBtn').onclick = () => {
     notify('Select the responsible office and enter its email before sending a reminder.');
     return;
   }
+
+  if ($('#emailRefNo')) $('#emailRefNo').value = selected.ref || selected.reference_number || '';
+  if ($('#emailSubject')) $('#emailSubject').value = `ප්‍රමාද වූ පැමිණිලි මතක් කිරීම - ${selected.ref}`;
+  if ($('#emailCategory')) $('#emailCategory').value = selected.category || 'Women';
+  if ($('#emailSubcategory')) $('#emailSubcategory').value = selected.subcategory || 'Legal Aid & Rights';
+  if ($('#emailPriority')) $('#emailPriority').value = selected.priority || 'High';
+  if ($('#emailDateReceived')) $('#emailDateReceived').value = selected.dateReceived || selected.received_at || 'Not recorded';
+
   $('#emailTargetDept').value = targetDept;
+  if ($('#emailReferredBy')) $('#emailReferredBy').value = (currentUser ? (currentUser.fullName || currentUser.full_name) : null) || selected.referredBy || selected.complainant_name || 'Kavishka Dilshan';
   $('#emailTargetAddr').value = targetEmail;
   if ($('#emailLanguageSelect')) $('#emailLanguageSelect').value = 'si';
-  updateEmailSubjectByLanguage();
   $('#emailNote').value = `Reminder: grievance ${selected.ref} is overdue. Please provide an action update to MWCA.`;
+  if ($('#emailSummary')) $('#emailSummary').value = selected.description || selected.summary || '';
+
+  updateLiveEmailPreview();
   $('#emailDialog').showModal();
 };
 
@@ -1204,9 +1361,17 @@ const emailForm = $('#emailForm');
 if (emailForm) {
   emailForm.onsubmit = async event => {
     event.preventDefault();
+    const refNo = $('#emailRefNo') ? $('#emailRefNo').value.trim() : '';
+    const subject = $('#emailSubject') ? $('#emailSubject').value.trim() : '';
+    const category = $('#emailCategory') ? $('#emailCategory').value : 'Women';
+    const subcategory = $('#emailSubcategory') ? $('#emailSubcategory').value.trim() : '';
+    const priority = $('#emailPriority') ? $('#emailPriority').value : 'Normal';
+    const dateReceived = $('#emailDateReceived') ? $('#emailDateReceived').value.trim() : '';
     const targetDept = $('#emailTargetDept').value.trim();
+    const referredBy = $('#emailReferredBy') ? $('#emailReferredBy').value.trim() : '';
     const targetEmail = $('#emailTargetAddr').value.trim();
     const note = $('#emailNote').value.trim();
+    const description = $('#emailSummary') ? $('#emailSummary').value.trim() : '';
     const language = $('#emailLanguageSelect') ? $('#emailLanguageSelect').value : 'si';
     const submitBtn = $('#dispatchEmailSubmitBtn');
 
@@ -1226,7 +1391,22 @@ if (emailForm) {
         const response = await fetch(`${API_ROOT}/grievances/${selected.id}/send-email`, {
           method: 'POST',
           headers: authHeaders({ 'Content-Type': 'application/json' }),
-          body: JSON.stringify({ recipientEmail: targetEmail, departmentName: targetDept, note, subject: $('#emailSubject') ? $('#emailSubject').value.trim() : undefined, language, reminder: emailReminderMode, newAttachments: emailNewFiles })
+          body: JSON.stringify({
+            referenceNumber: refNo,
+            subject,
+            category,
+            subcategory,
+            priority,
+            dateReceived,
+            referredBy,
+            recipientEmail: targetEmail,
+            departmentName: targetDept,
+            note,
+            description,
+            language,
+            reminder: emailReminderMode,
+            newAttachments: emailNewFiles
+          })
         });
         const contentType = response.headers.get('content-type') || '';
         const result = contentType.includes('application/json') ? await response.json() : { message: 'Server returned a non-JSON response.' };

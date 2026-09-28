@@ -2,6 +2,7 @@ const express = require('express');
 const nodemailer = require('nodemailer');
 const { all, get, run } = require('../database/database');
 const { authenticate, authorize } = require('../auth');
+const { encryptAttachment, decryptAttachment, sanitizeFilename } = require('../services/encryption');
 const router = express.Router();
 
 const statuses = ['Awaiting Review', 'Assigned', 'Forwarded', 'Resolved', 'Closed'];
@@ -75,23 +76,33 @@ async function getMailTransporterAsync(allowSimulation = false) {
   const config = isGmail ? {
     service: 'gmail',
     auth: { user, pass },
-    tls: { rejectUnauthorized: false }
+    tls: { rejectUnauthorized: process.env.NODE_ENV === 'production' }
   } : {
     host,
     port,
     secure: port === 465,
     auth: { user, pass },
-    tls: { rejectUnauthorized: false }
+    tls: { rejectUnauthorized: process.env.NODE_ENV === 'production' }
   };
 
   return { transporter: nodemailer.createTransport(config), isTestAccount: false, fromUser: process.env.MAIL_FROM || user };
 }
 
 function attachmentFromRow(row) {
-  if (!row.attachment_name || !row.attachment_url) return undefined;
-  const match = String(row.attachment_url).match(/^data:([^;]+);base64,(.+)$/);
-  if (!match) return undefined;
-  return { filename: row.attachment_name, contentType: match[1], content: Buffer.from(match[2], 'base64') };
+  if (!row.attachment_name) return undefined;
+  try {
+    const meta = {
+      name: row.attachment_name,
+      storedPath: row.attachment_url && !row.attachment_url.startsWith('data:') ? row.attachment_url : null,
+      dataUrl: row.attachment_url && row.attachment_url.startsWith('data:') ? row.attachment_url : null
+    };
+    const decrypted = decryptAttachment(meta);
+    if (!decrypted) return undefined;
+    return { filename: decrypted.name, contentType: decrypted.contentType, content: decrypted.buffer };
+  } catch (err) {
+    console.error('⚠️ Error decrypting single attachment:', err.message);
+    return undefined;
+  }
 }
 
 function parseRecipientEmails(value) {
@@ -102,10 +113,15 @@ function parseRecipientEmails(value) {
 function attachmentsFromRow(row) {
   let attachments = [];
   try { attachments = row.attachments_json ? JSON.parse(row.attachments_json) : []; } catch (error) { attachments = []; }
-  return attachments.map(attachment => {
-    const match = String(attachment.dataUrl || '').match(/^data:([^;]+);base64,(.+)$/);
-    if (!match || !attachment.name) return null;
-    return { filename: attachment.name, contentType: attachment.contentType || match[1], content: Buffer.from(match[2], 'base64') };
+  return attachments.map(att => {
+    try {
+      const decrypted = decryptAttachment(att);
+      if (!decrypted) return null;
+      return { filename: decrypted.name, contentType: decrypted.contentType, content: decrypted.buffer };
+    } catch (err) {
+      console.error('⚠️ Error decrypting attachment item:', err.message);
+      return null;
+    }
   }).filter(Boolean);
 }
 
@@ -292,6 +308,25 @@ router.post('/smtp/test', authorize('ADMIN'), async (req, res) => {
 function sqliteToView(row) {
   const recDate = row.received_at || row.created_at;
   const defaultDue = recDate ? new Date(new Date(recDate).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString() : null;
+
+  let rawAtts = [];
+  try {
+    rawAtts = row.attachments_json ? JSON.parse(row.attachments_json) : [];
+  } catch (e) {
+    rawAtts = [];
+  }
+
+  const safeAttachments = rawAtts.map((att, idx) => {
+    const downloadUrl = `/api/grievances/${row.id}/attachments/${idx}/download`;
+    return {
+      name: att.name || att.filename || `attachment_${idx + 1}`,
+      size: att.size || 'N/A',
+      contentType: att.contentType || 'application/octet-stream',
+      downloadUrl: downloadUrl,
+      dataUrl: att.dataUrl || downloadUrl
+    };
+  });
+
   return {
     id: row.id,
     reference_number: row.reference_number,
@@ -312,14 +347,80 @@ function sqliteToView(row) {
     status: row.status,
     assigned_division: row.assigned_division,
     recipient_email: row.recipient_email,
+    recipient_emails: row.recipient_emails,
     attachment_name: row.attachment_name,
-    attachment_url: row.attachment_url,
+    attachment_url: row.attachment_url ? `/api/grievances/${row.id}/attachments/0/download` : null,
     attachment_size: row.attachment_size,
+    attachments: safeAttachments,
+    attachments_json: JSON.stringify(safeAttachments),
     received_at: recDate,
     due_at: (row.due_at && row.due_at !== row.received_at) ? row.due_at : defaultDue,
-    closed_at: row.closed_at
+    closed_at: row.closed_at,
+    action_taken: row.action_taken,
+    action_date: row.action_date
   };
 }
+
+router.get('/:id/attachments/:attIndex/download', authenticate, async (req, res, next) => {
+  try {
+    const idVal = Number(req.params.id);
+    const row = await get('SELECT * FROM grievances WHERE id = ? OR reference_number = ?', [Number.isFinite(idVal) ? idVal : -1, req.params.id]);
+    if (!row) return res.status(404).json({ message: 'Grievance record not found.' });
+
+    // Role & Confidentiality Authorization Check
+    const userRole = req.user ? req.user.role : 'GUEST';
+    const userId = req.user ? req.user.id : null;
+    const isAssignedOfficer = row.assigned_officer_id && row.assigned_officer_id === userId;
+    const isCreator = row.created_by && row.created_by === userId;
+
+    if (row.confidentiality === 'Strictly Confidential') {
+      if (!['ADMIN', 'REVIEWER'].includes(userRole) && !isAssignedOfficer && !isCreator) {
+        return res.status(403).json({ message: 'Access Denied: This grievance is Strictly Confidential.' });
+      }
+    } else if (row.confidentiality === 'Confidential') {
+      if (userRole === 'VIEWER') {
+        return res.status(403).json({ message: 'Access Denied: Read-only viewers cannot download Confidential attachments.' });
+      }
+    }
+
+    let atts = [];
+    try { atts = row.attachments_json ? JSON.parse(row.attachments_json) : []; } catch (e) {}
+
+    const index = parseInt(req.params.attIndex, 10);
+    const targetMeta = Number.isFinite(index) && atts[index] ? atts[index] : (atts[0] || (row.attachment_name ? { name: row.attachment_name, storedPath: row.attachment_url, dataUrl: row.attachment_url, contentType: 'application/octet-stream' } : null));
+
+    if (!targetMeta) {
+      return res.status(404).json({ message: 'Attachment file not found.' });
+    }
+
+    const decrypted = decryptAttachment(targetMeta);
+    if (!decrypted || !decrypted.buffer) {
+      return res.status(404).json({ message: 'Failed to retrieve or decrypt attachment buffer.' });
+    }
+
+    // Audit Log Entry for Access & Download
+    if (userId) {
+      await run(
+        'INSERT INTO audit_logs (user_id, grievance_id, activity, details, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
+        [userId, row.id, 'ATTACHMENT_DOWNLOAD', `Downloaded file '${decrypted.name}' (Confidentiality: ${row.confidentiality || 'Standard'})`]
+      );
+    }
+
+    const safeName = sanitizeFilename(decrypted.name);
+    res.setHeader('Content-Type', decrypted.contentType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+    res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+
+    res.send(decrypted.buffer);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/:id/attachments/:attIndex', authenticate, (req, res, next) => {
+  req.url += '/download';
+  router.handle(req, res, next);
+});
 
 function buildFilters(req) {
   const clauses = [];
@@ -420,6 +521,14 @@ router.post('/', authorize('ADMIN', 'OFFICER', 'USER', 'REVIEWER'), async (req, 
 
     const userId = (req.user && req.user.id) ? req.user.id : 1;
 
+    const rawAttachments = Array.isArray(b.attachments) ? [...b.attachments] : [];
+    if (!rawAttachments.length && b.attachmentName && (b.attachmentUrl || b.attachmentData)) {
+      rawAttachments.push({ name: b.attachmentName, dataUrl: b.attachmentUrl || b.attachmentData, size: b.attachmentSize });
+    }
+
+    const encryptedAttachments = rawAttachments.map(att => encryptAttachment(att)).filter(Boolean);
+    const firstAtt = encryptedAttachments[0] || null;
+
     const inserted = await run(
       `INSERT INTO grievances (reference_number, complainant_name, nic, telephone, email, address, district, source, intake_method, category, subcategory, subject, description, priority, confidentiality, status, assigned_division, recipient_email, recipient_emails, attachment_name, attachment_url, attachment_size, attachments_json, received_at, due_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -442,10 +551,10 @@ router.post('/', authorize('ADMIN', 'OFFICER', 'USER', 'REVIEWER'), async (req, 
         b.assignedDivision || null,
         b.recipientEmail || null,
         JSON.stringify(parseRecipientEmails(b.recipientEmails || b.recipientEmail)),
-        b.attachmentName || null,
-        b.attachmentUrl || null,
-        b.attachmentSize || null,
-        JSON.stringify(Array.isArray(b.attachments) ? b.attachments : []),
+        firstAtt ? firstAtt.name : (b.attachmentName || null),
+        firstAtt ? firstAtt.storedPath : null,
+        firstAtt ? firstAtt.size : (b.attachmentSize || null),
+        JSON.stringify(encryptedAttachments),
         recDateStr,
         calculatedDueAt,
         userId
@@ -458,9 +567,14 @@ router.post('/', authorize('ADMIN', 'OFFICER', 'USER', 'REVIEWER'), async (req, 
         inserted.id,
         'Registered',
         'Awaiting Review',
-        `Grievance registered in SQLite database with ${b.attachmentName ? 'attached document (' + b.attachmentName + ')' : 'no attachments'}.`,
+        `Grievance registered in SQLite database with ${encryptedAttachments.length ? encryptedAttachments.length + ' AES-256 encrypted attachment(s)' : 'no attachments'}.`,
         userId
       ]
+    );
+
+    await run(
+      'INSERT INTO audit_logs (user_id, grievance_id, activity, details, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
+      [userId, inserted.id, 'GRIEVANCE_REGISTERED', `Registered case ${reference} with ${encryptedAttachments.length} encrypted document(s). Confidentiality level: ${b.confidentiality || 'Standard'}`]
     );
 
     res.status(201).json({ id: inserted.id, referenceNumber: reference, status: 'Awaiting Review' });
@@ -512,37 +626,48 @@ router.post('/:id/send-email', authorize('ADMIN', 'OFFICER'), async (req, res, n
       }
     }
 
+    const refNoVal = req.body.referenceNumber || req.body.refNo || row.reference_number;
+    const categoryVal = req.body.category || row.category;
+    const subcategoryVal = req.body.subcategory || row.subcategory;
+    const priorityVal = req.body.priority || row.priority;
+    const dateReceivedVal = req.body.dateReceived || formattedDate;
+    const referredByPerson = req.body.referredBy || (req.user ? (req.user.full_name || req.user.email) : null) || row.complainant_name || 'N/A';
+    const descriptionVal = req.body.description !== undefined ? req.body.description : (req.body.summary !== undefined ? req.body.summary : row.description);
+
     const titleText = isSinhala
       ? (reminder ? 'ප්‍රමාද වූ පැමිණිලි මතක් කිරීම' : 'මහජන පැමිණිලි ,දුක්ගැනවිලි සහ ඉල්ලීම්')
       : (reminder ? 'Overdue Reminder' : 'Grievance Referral');
 
     const emailSubject = req.body.subject || (isSinhala
-      ? (reminder ? `ප්‍රමාද වූ පැමිණිලි මතක් කිරීම - ${row.reference_number}` : 'මහජන පැමිණිලි ,දුක්ගැනවිලි සහ ඉල්ලීම්')
-      : (reminder ? `Overdue Reminder - ${row.reference_number}` : `Grievance Referral - ${row.reference_number}${row.subcategory || row.subject ? ' – ' + (row.subcategory || row.subject) : ''}`));
+      ? (reminder ? `ප්‍රමාද වූ පැමිණිලි මතක් කිරීම - ${refNoVal}` : 'මහජන පැමිණිලි ,දුක්ගැනවිලි සහ ඉල්ලීම්')
+      : (reminder ? `Overdue Reminder - ${refNoVal}` : `Grievance Referral - ${refNoVal}${subcategoryVal || ' – ' + subcategoryVal}`));
 
     const ministryName = isSinhala ? 'කාන්තා හා ළමා කටයුතු අමාත්‍යාංශය' : 'Ministry of Women and Child Affairs';
     const greetingText = isSinhala ? 'ගරු මහත්මයා/මහත්මියනි,' : 'Dear Sir/Madam,';
     const introText = isSinhala
       ? (reminder
-          ? `මෙය ඔබ කාර්යාලය වෙත යොමු කරන ලද <strong>${escHtml(row.reference_number)}</strong> දැරූ කාන්තා හා ළමා කටයුතු අමාත්‍යාංශයේ නිල පැමිණිල්ල සම්බන්ධයෙන් වූ හදිසි මතක් කිරීමකි.`
+          ? `මෙය ඔබ කාර්යාලය වෙත යොමු කරන ලද <strong>${escHtml(refNoVal)}</strong> දැරූ කාන්තා හා ළමා කටයුතු අමාත්‍යාංශයේ නිල පැමිණිල්ල සම්බන්ධයෙන් වූ හදිසි මතක් කිරීමකි.`
           : `කාන්තා හා ළමා කටයුතු අමාත්‍යාංශය මගින් අවශ්‍ය සමාලෝචනය සහ ඉදිරි පියවර ගැනීම සඳහා පැමිණිල්ලක්/දුක්ගැනවිල්ලක් ඔබ කාර්යාලය වෙත යොමු කර ඇත.`)
       : (reminder
-          ? `This is an urgent reminder regarding official MWCA grievance <strong>${escHtml(row.reference_number)}</strong> referred to your office.`
+          ? `This is an urgent reminder regarding official MWCA grievance <strong>${escHtml(refNoVal)}</strong> referred to your office.`
           : `A grievance has been referred to your office by the Ministry of Women and Child Affairs for necessary review and action.`);
 
     const detailsTitle = isSinhala ? 'පැමිණිලි විස්තර' : 'Grievance Details';
     const labelRef = isSinhala ? 'යොමු අංකය' : 'Reference No.';
+    const labelSubject = isSinhala ? 'ලිපියේ මාතෘකාව / Subject' : 'Subject';
+    const labelSummary = isSinhala ? 'පැමිණිල්ලේ සාරාංශය සහ විස්තර' : 'Case Summary & Details';
     const labelCat = isSinhala ? 'ප්‍රධාන වර්ගීකරණය' : 'Category';
     const labelSubcat = isSinhala ? 'අනු වර්ගීකරණය' : 'Subcategory';
     const labelPriority = isSinhala ? 'ප්‍රමුඛතාව' : 'Priority';
     const labelDate = isSinhala ? 'ලැබුණු දිනය' : 'Date Received';
-    const labelReferred = isSinhala ? 'යොමු කළ අංශය / දෙපාර්තමේන්තුව' : 'Referred To';
+    const labelReferred = isSinhala ? 'යොමු කළ අංශය / කාර්යාලය' : 'Referred Division / Office';
+    const labelReferredBy = isSinhala ? 'දුක්ගැනවිල්ල / පැමිණිල්ල යොමු කල පුද්ගලයා' : 'Referred By (Person)';
 
     const noteTitle = isSinhala ? 'උපදෙස් / කරුණු පැහැදිලි කිරීම්' : 'Instructions / Context';
     const actionTitle = isSinhala ? 'අවශ්‍ය ඉදිරි පියවර' : 'Action Required';
     const actionText = isSinhala
-      ? `කරුණාකර මෙම පැමිණිල්ල සහ අමුණා ඇති ලේඛන පරීක්ෂා කර අදාළ ක්‍රියාපටිපාටීන්ට අනුකූලව අවශ්‍ය ඉදිරි පියවර ගන්න. මෙම පැමිණිල්ලට අදාළ සියලුම ලිපිගොනු සඳහා යොමු අංකය <strong>${escHtml(row.reference_number)}</strong> සඳහන් කිරීමට කාරුණික වන්න.`
-      : `Kindly review the grievance and the attached documents and take the necessary action in accordance with the relevant procedures. Please quote reference number <strong>${escHtml(row.reference_number)}</strong> in all correspondence related to this grievance.`;
+      ? `කරුණාකර මෙම පැමිණිල්ල සහ අමුණා ඇති ලේඛන පරීක්ෂා කර අදාළ ක්‍රියාපටිපාටීන්ට අනුකූලව අවශ්‍ය ඉදිරි පියවර ගන්න. මෙම පැමිණිල්ලට අදාළ සියලුම ලිපිගොනු සඳහා යොමු අංකය <strong>${escHtml(refNoVal)}</strong> සඳහන් කිරීමට කාරුණික වන්න.`
+      : `Kindly review the grievance and the attached documents and take the necessary action in accordance with the relevant procedures. Please quote reference number <strong>${escHtml(refNoVal)}</strong> in all correspondence related to this grievance.`;
 
     const thanksText = isSinhala ? 'ස්තුතියි,' : 'Thank you.';
     const footerSystem = isSinhala ? 'මහජන පැමිණිලි සහ දුක්ගැනවිලි කළමනාකරණ පද්ධතිය' : 'Grievance Management System';
@@ -564,7 +689,7 @@ router.post('/:id/send-email', authorize('ADMIN', 'OFFICER'), async (req, res, n
     .details-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 18px 0 22px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; }
     .details-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; }
     .details-table tr:last-child td { border-bottom: none; }
-    .label { width: 140px; font-weight: 600; color: #64748b; }
+    .label { width: 160px; font-weight: 600; color: #64748b; vertical-align: top; }
     .val { font-weight: 600; color: #0f172a; }
     .action { background: #eff6ff; border-left: 4px solid #2563eb; padding: 14px 16px; border-radius: 0 8px 8px 0; margin: 20px 0; }
     .action h4 { margin: 0 0 4px; color: #1e40af; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -588,12 +713,15 @@ router.post('/:id/send-email', authorize('ADMIN', 'OFFICER'), async (req, res, n
       
       <h3 style="font-size:13.5px;font-weight:700;color:#1e1b4b;text-transform:uppercase;letter-spacing:0.5px;margin:22px 0 8px;">${detailsTitle}</h3>
       <table class="details-table">
-        <tr><td class="label">${labelRef}</td><td class="val"><strong>${escHtml(row.reference_number)}</strong></td></tr>
-        <tr><td class="label">${labelCat}</td><td class="val">${escHtml(isSinhala ? (row.category === 'Child' ? 'ළමා අංශය (Child)' : (row.category === 'Women' ? 'කාන්තා අංශය (Women)' : row.category)) : row.category)}</td></tr>
-        <tr><td class="label">${labelSubcat}</td><td class="val">${escHtml(isSinhala ? (row.subcategory || 'සාමාන්‍ය විමසීම්') : (row.subcategory || 'General Inquiry'))}</td></tr>
-        <tr><td class="label">${labelPriority}</td><td class="val">${escHtml(isSinhala ? (row.priority === 'Critical' ? 'අතිශය හදිසි (Critical)' : (row.priority === 'High' ? 'ඉහළ ප්‍රමුඛතාව (High)' : (row.priority === 'Low' ? 'අඩු ප්‍රමුඛතාව (Low)' : 'සාමාන්‍ය (Normal)'))) : (row.priority || 'Normal'))}</td></tr>
-        <tr><td class="label">${labelDate}</td><td class="val">${escHtml(formattedDate)}</td></tr>
+        <tr><td class="label">${labelRef}</td><td class="val"><strong>${escHtml(refNoVal)}</strong></td></tr>
+        ${emailSubject ? `<tr><td class="label">${labelSubject}</td><td class="val"><strong>${escHtml(emailSubject)}</strong></td></tr>` : ''}
+        <tr><td class="label">${labelCat}</td><td class="val">${escHtml(isSinhala ? (categoryVal === 'Child' ? 'ළමා අංශය (Child)' : (categoryVal === 'Women' ? 'කාන්තා අංශය (Women)' : categoryVal)) : categoryVal)}</td></tr>
+        <tr><td class="label">${labelSubcat}</td><td class="val">${escHtml(isSinhala ? (subcategoryVal || 'සාමාන්‍ය විමසීම්') : (subcategoryVal || 'General Inquiry'))}</td></tr>
+        <tr><td class="label">${labelPriority}</td><td class="val">${escHtml(isSinhala ? (priorityVal === 'Critical' ? 'අතිශය හදිසි (Critical)' : (priorityVal === 'High' ? 'ඉහළ ප්‍රමුඛතාව (High)' : (priorityVal === 'Low' ? 'අඩු ප්‍රමුඛතාව (Low)' : 'සාමාන්‍ය (Normal)'))) : (priorityVal || 'Normal'))}</td></tr>
+        <tr><td class="label">${labelDate}</td><td class="val">${escHtml(dateReceivedVal)}</td></tr>
         <tr><td class="label">${labelReferred}</td><td class="val">${escHtml(targetDept)}</td></tr>
+        <tr><td class="label">${labelReferredBy}</td><td class="val">${escHtml(referredByPerson)}</td></tr>
+        ${descriptionVal ? `<tr><td class="label">${labelSummary}</td><td class="val" style="font-weight: normal; white-space: pre-wrap; line-height: 1.5;">${escHtml(descriptionVal)}</td></tr>` : ''}
       </table>
 
       ${note ? `
@@ -623,17 +751,20 @@ router.post('/:id/send-email', authorize('ADMIN', 'OFFICER'), async (req, res, n
       greetingText,
       '',
       isSinhala
-        ? (reminder ? `මෙය ඔබ කාර්යාලය වෙත යොමු කරන ලද ${row.reference_number} දැරූ කාන්තා හා ළමා කටයුතු අමාත්‍යාංශයේ නිල පැමිණිල්ල සම්බන්ධයෙන් වූ හදිසි මතක් කිරීමකි.` : 'කාන්තා හා ළමා කටයුතු අමාත්‍යාංශය මගින් අවශ්‍ය සමාලෝචනය සහ ඉදිරි පියවර ගැනීම සඳහා පැමිණිල්ලක්/දුක්ගැනවිල්ලක් ඔබ කාර්යාලය වෙත යොමු කර ඇත.')
-        : (reminder ? `This is an urgent reminder regarding official MWCA grievance ${row.reference_number} referred to your office.` : 'A grievance has been referred to your office by the Ministry of Women and Child Affairs for necessary review and action.'),
+        ? (reminder ? `මෙය ඔබ කාර්යාලය වෙත යොමු කරන ලද ${refNoVal} දැරූ කාන්තා හා ළමා කටයුතු අමාත්‍යාංශයේ නිල පැමිණිල්ල සම්බන්ධයෙන් වූ හදිසි මතක් කිරීමකි.` : 'කාන්තා හා ළමා කටයුතු අමාත්‍යාංශය මගින් අවශ්‍ය සමාලෝචනය සහ ඉදිරි පියවර ගැනීම සඳහා පැමිණිල්ලක්/දුක්ගැනවිල්ලක් ඔබ කාර්යාලය වෙත යොමු කර ඇත.')
+        : (reminder ? `This is an urgent reminder regarding official MWCA grievance ${refNoVal} referred to your office.` : 'A grievance has been referred to your office by the Ministry of Women and Child Affairs for necessary review and action.'),
       '',
       detailsTitle,
       '',
-      `${labelRef} : ${row.reference_number}`,
-      `${labelCat}      : ${row.category}`,
-      `${labelSubcat}   : ${row.subcategory || 'General Inquiry'}`,
-      `${labelPriority}      : ${row.priority || 'Normal'}`,
-      `${labelDate} : ${formattedDate}`,
+      `${labelRef} : ${refNoVal}`,
+      emailSubject ? `${labelSubject}     : ${emailSubject}` : null,
+      `${labelCat}      : ${categoryVal}`,
+      `${labelSubcat}   : ${subcategoryVal || 'General Inquiry'}`,
+      `${labelPriority}      : ${priorityVal || 'Normal'}`,
+      `${labelDate} : ${dateReceivedVal}`,
       `${labelReferred}   : ${targetDept}`,
+      `${labelReferredBy}   : ${referredByPerson}`,
+      descriptionVal ? `\n${labelSummary} :\n${descriptionVal}` : null,
       note ? `\n${noteTitle}  : ${note}\n` : '',
       actionTitle,
       '',
@@ -654,7 +785,7 @@ router.post('/:id/send-email', authorize('ADMIN', 'OFFICER'), async (req, res, n
         subject: emailSubject,
         text: emailText,
         html: emailHtml,
-        attachments: [summaryAttachment(row, targetDept, note), ...getAllAttachmentsFromRow(row), ...parsedNewMailAtts].filter(Boolean)
+        attachments: [...getAllAttachmentsFromRow(row), ...parsedNewMailAtts].filter(Boolean)
       });
 
     } catch (mailErr) {
@@ -973,15 +1104,20 @@ router.patch('/:id', authorize('ADMIN', 'OFFICER'), async (req, res, next) => {
       }
     }
     if (req.body.attachments !== undefined || req.body.attachments_json !== undefined) {
-      const atts = Array.isArray(req.body.attachments) ? req.body.attachments : (req.body.attachments_json ? JSON.parse(req.body.attachments_json) : []);
+      const rawAtts = Array.isArray(req.body.attachments) ? req.body.attachments : (req.body.attachments_json ? JSON.parse(req.body.attachments_json) : []);
+      const processedAtts = rawAtts.map(att => {
+        if (att.storedPath || att.isEncrypted) return att;
+        return encryptAttachment(att);
+      }).filter(Boolean);
+
       updateFields.push('attachments_json = ?');
-      values.push(JSON.stringify(atts));
+      values.push(JSON.stringify(processedAtts));
       updateFields.push('attachment_name = ?');
-      values.push(atts[0]?.name || null);
+      values.push(processedAtts[0]?.name || null);
       updateFields.push('attachment_url = ?');
-      values.push(atts[0]?.dataUrl || null);
+      values.push(processedAtts[0]?.storedPath || null);
       updateFields.push('attachment_size = ?');
-      values.push(atts[0]?.size || null);
+      values.push(processedAtts[0]?.size || null);
     }
 
     if (!updateFields.length) return res.status(400).json({ message: 'No valid fields provided.' });
@@ -1005,9 +1141,10 @@ router.delete('/', authorize('ADMIN', 'OFFICER', 'USER', 'REVIEWER'), async (req
     const existing = await get('SELECT id, reference_number FROM grievances WHERE (id = ? AND id > 0) OR reference_number = ?', [Number(idQuery) || -1, refQuery]);
     if (existing) {
       try { await run('DELETE FROM case_actions WHERE grievance_id = ?', [existing.id]); } catch (e) {}
-      await run('DELETE FROM grievances WHERE id = ?', [existing.id]);
+      const result = await run('DELETE FROM grievances WHERE id = ?', [existing.id]);
+      return res.status(200).json({ message: 'Grievance deleted from database.', referenceNumber: existing.reference_number, changes: result.changes });
     }
-    res.status(200).json({ message: 'Grievance deleted successfully.' });
+    res.status(200).json({ message: 'Grievance removed.' });
   } catch (error) { next(error); }
 });
 
@@ -1020,9 +1157,10 @@ router.delete('/:id', authorize('ADMIN', 'OFFICER', 'USER', 'REVIEWER'), async (
 
     if (existing) {
       try { await run('DELETE FROM case_actions WHERE grievance_id = ?', [existing.id]); } catch (e) {}
-      await run('DELETE FROM grievances WHERE id = ?', [existing.id]);
+      const result = await run('DELETE FROM grievances WHERE id = ?', [existing.id]);
+      return res.status(200).json({ message: 'Grievance deleted from database.', referenceNumber: existing.reference_number, changes: result.changes });
     }
-    res.status(200).json({ message: 'Grievance deleted successfully.' });
+    res.status(200).json({ message: 'Grievance removed.' });
   } catch (error) { next(error); }
 });
 

@@ -35,11 +35,16 @@ const sendGrievanceEmail = async ({
 
   const detailsTitle = isSinhala ? 'පැමිණිලි විස්තර' : 'Grievance Details';
   const labelRef = isSinhala ? 'යොමු අංකය' : 'Reference No.';
+  const labelSubject = isSinhala ? 'ලිපියේ මාතෘකාව / Subject' : 'Subject';
+  const labelSummary = isSinhala ? 'පැමිණිල්ලේ සාරාංශය සහ විස්තර' : 'Case Summary & Details';
   const labelCat = isSinhala ? 'ප්‍රධාන වර්ගීකරණය' : 'Category';
   const labelSubcat = isSinhala ? 'අනු වර්ගීකරණය' : 'Subcategory';
   const labelPriority = isSinhala ? 'ප්‍රමුඛතාව' : 'Priority';
   const labelDate = isSinhala ? 'ලැබුණු දිනය' : 'Date Received';
-  const labelReferred = isSinhala ? 'යොමු කළ අංශය / දෙපාර්තමේන්තුව' : 'Referred To';
+  const labelReferred = isSinhala ? 'යොමු කළ අංශය / කාර්යාලය' : 'Referred Division / Office';
+  const labelReferredBy = isSinhala ? 'දුක්ගැනවිල්ල / පැමිණිල්ල යොමු කල පුද්ගලයා' : 'Referred By (Person)';
+
+  const referredByPerson = grievance.referred_by || grievance.referredBy || grievance.created_by_name || grievance.complainant_name || 'N/A';
 
   const actionTitle = isSinhala ? 'අවශ්‍ය ඉදිරි පියවර' : 'Action Required';
   const actionText = isSinhala
@@ -70,7 +75,7 @@ const sendGrievanceEmail = async ({
     .details-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 18px 0 22px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; }
     .details-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; }
     .details-table tr:last-child td { border-bottom: none; }
-    .label { width: 140px; font-weight: 600; color: #64748b; }
+    .label { width: 160px; font-weight: 600; color: #64748b; vertical-align: top; }
     .val { font-weight: 600; color: #0f172a; }
     .action { background: #eff6ff; border-left: 4px solid #2563eb; padding: 14px 16px; border-radius: 0 8px 8px 0; margin: 20px 0; }
     .action h4 { margin: 0 0 4px; color: #1e40af; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -92,11 +97,14 @@ const sendGrievanceEmail = async ({
       <h3 style="font-size:13.5px;font-weight:700;color:#1e1b4b;text-transform:uppercase;letter-spacing:0.5px;margin:22px 0 8px;">${detailsTitle}</h3>
       <table class="details-table">
         <tr><td class="label">${labelRef}</td><td class="val"><strong>${refNo}</strong></td></tr>
+        ${grievance.subject ? `<tr><td class="label">${labelSubject}</td><td class="val"><strong>${grievance.subject}</strong></td></tr>` : ''}
         <tr><td class="label">${labelCat}</td><td class="val">${isSinhala ? (category === 'Child' ? 'ළමා අංශය (Child)' : (category === 'Women' ? 'කාන්තා අංශය (Women)' : category)) : category}</td></tr>
         <tr><td class="label">${labelSubcat}</td><td class="val">${isSinhala ? (subcategory || 'සාමාන්‍ය විමසීම්') : subcategory}</td></tr>
         <tr><td class="label">${labelPriority}</td><td class="val">${isSinhala ? (priority === 'Critical' ? 'අතිශය හදිසි (Critical)' : (priority === 'High' ? 'ඉහළ ප්‍රමුඛතාව (High)' : (priority === 'Low' ? 'අඩු ප්‍රමුඛතාව (Low)' : 'සාමාන්‍ය (Normal)'))) : priority}</td></tr>
         <tr><td class="label">${labelDate}</td><td class="val">${dateReceived}</td></tr>
         <tr><td class="label">${labelReferred}</td><td class="val">${referredTo}</td></tr>
+        <tr><td class="label">${labelReferredBy}</td><td class="val">${referredByPerson}</td></tr>
+        ${grievance.description ? `<tr><td class="label">${labelSummary}</td><td class="val" style="font-weight: normal; white-space: pre-wrap; line-height: 1.5;">${grievance.description}</td></tr>` : ''}
       </table>
 
       <div class="action">
@@ -116,31 +124,32 @@ const sendGrievanceEmail = async ({
 </html>
 `,
     text: [
-      'Dear Sir/Madam,',
+      greetingText,
       '',
-      'A grievance has been referred to your office by the Ministry of Women and Child Affairs for necessary review and action.',
+      introText,
       '',
-      'GRIEVANCE DETAILS',
+      detailsTitle,
       '',
-      `Reference No. : ${refNo}`,
-      `Category      : ${category}`,
-      `Subcategory   : ${subcategory}`,
-      `Priority      : ${priority}`,
-      `Date Received : ${dateReceived}`,
-      `Referred To   : ${referredTo}`,
+      `${labelRef} : ${refNo}`,
+      grievance.subject ? `${labelSubject}     : ${grievance.subject}` : null,
+      `${labelCat}      : ${category}`,
+      `${labelSubcat}   : ${subcategory}`,
+      `${labelPriority}      : ${priority}`,
+      `${labelDate} : ${dateReceived}`,
+      `${labelReferred}   : ${referredTo}`,
+      `${labelReferredBy}   : ${referredByPerson}`,
+      grievance.description ? `\n${labelSummary} :\n${grievance.description}` : null,
       '',
-      'ACTION REQUIRED',
+      actionTitle,
       '',
-      'Kindly review the grievance and the attached documents and take the necessary action in accordance with the relevant procedures.',
+      actionText.replace(/<[^>]+>/g, ''),
       '',
-      `Please quote the reference number ${refNo} in all correspondence related to this grievance.`,
+      thanksText,
       '',
-      'Thank you.',
-      '',
-      'Grievance Management System',
-      'Administration Division',
-      'Ministry of Women and Child Affairs'
-    ].join('\n'),
+      footerSystem,
+      footerDept,
+      footerMinistry
+    ].filter(Boolean).join('\n'),
     attachments: attachmentPath
       ? [
           {
