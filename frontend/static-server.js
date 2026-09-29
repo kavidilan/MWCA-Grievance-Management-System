@@ -15,15 +15,20 @@ const assetsImg = path.join(root, 'assets', 'images.png');
 const targetLogoJpg = path.join(root, 'ministry-logo.jpg');
 const targetLogoPng = path.join(root, 'ministry-logo.png');
 try {
+  const safeCopy = (src, dest) => {
+    if (fs.existsSync(src) && (!fs.existsSync(dest) || fs.statSync(src).mtimeMs > fs.statSync(dest).mtimeMs)) {
+      fs.copyFileSync(src, dest);
+    }
+  };
   if (fs.existsSync(updatedImg)) {
-    fs.copyFileSync(updatedImg, assetsImg);
-    fs.copyFileSync(updatedImg, targetLogoJpg);
-    fs.copyFileSync(updatedImg, targetLogoPng);
-    fs.copyFileSync(updatedImg, path.join(root, 'image.jpg'));
+    safeCopy(updatedImg, assetsImg);
+    safeCopy(updatedImg, targetLogoJpg);
+    safeCopy(updatedImg, targetLogoPng);
+    safeCopy(updatedImg, path.join(root, 'image.jpg'));
   } else if (fs.existsSync(assetsImg)) {
-    fs.copyFileSync(assetsImg, targetLogoJpg);
-    fs.copyFileSync(assetsImg, targetLogoPng);
-    fs.copyFileSync(assetsImg, path.join(root, 'image.jpg'));
+    safeCopy(assetsImg, targetLogoJpg);
+    safeCopy(assetsImg, targetLogoPng);
+    safeCopy(assetsImg, path.join(root, 'image.jpg'));
   }
 } catch (e) {}
 
@@ -129,7 +134,14 @@ const server = http.createServer((request, response) => {
 
 
   // Security check
-  if (!filePath.startsWith(root + path.sep)) {
+  const normalizedRoot = path.resolve(root);
+  const rootWithSep = normalizedRoot.endsWith(path.sep) ? normalizedRoot : normalizedRoot + path.sep;
+
+  const isAllowed = process.platform === 'win32'
+    ? filePath.toLowerCase().startsWith(rootWithSep.toLowerCase()) || filePath.toLowerCase() === normalizedRoot.toLowerCase()
+    : filePath.startsWith(rootWithSep) || filePath === normalizedRoot;
+
+  if (!isAllowed) {
 
     response.writeHead(403);
 

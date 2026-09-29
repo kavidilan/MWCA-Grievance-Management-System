@@ -206,25 +206,25 @@
           </div><button class="primary" data-go="register">＋ Register a grievance</button>
         </div>
         <div class="stats dashboard-stats">
-          <article class="drill-card card-total" tabindex="0" role="button" data-drill-status="all">
+          <article class="drill-card card-total" tabindex="0" role="button" data-drill-status="all" title="Click to view all grievances">
             <div class="card-body">
               <span class="card-label">Total Grievances</span>
               <strong id="totalStat" class="card-val">0</strong>
             </div>
           </article>
-          <article class="drill-card card-awaiting" tabindex="0" role="button" data-drill-status="Awaiting Review">
+          <article class="drill-card card-awaiting" tabindex="0" role="button" data-drill-status="Awaiting Review" title="Click to view grievances awaiting review">
             <div class="card-body">
               <span class="card-label">Awaiting Review</span>
               <strong id="awaitingStat" class="card-val">0</strong>
             </div>
           </article>
-          <article class="drill-card card-resolved" tabindex="0" role="button" data-drill-status="Resolved">
+          <article class="drill-card card-resolved" tabindex="0" role="button" data-drill-status="Completed" title="Click to view completed grievances (Resolved & Closed)">
             <div class="card-body">
               <span class="card-label">Completed</span>
               <strong id="resolvedStat" class="card-val">0</strong>
             </div>
           </article>
-          <article class="drill-card card-overdue" tabindex="0" role="button" id="overdueCard">
+          <article class="drill-card card-overdue" tabindex="0" role="button" id="overdueCard" data-drill-status="Overdue" title="Click to view overdue grievances">
             <div class="card-body" style="width:100%">
               <div style="display:flex;align-items:center;justify-content:space-between">
                 <span class="card-label">Overdue</span>
@@ -336,11 +336,12 @@
           </select>
           <select id="statusFilter" aria-label="Filter by status">
             <option value="all">All Statuses</option>
-            <option>Awaiting Review</option>
-            <option>Assigned</option>
-            <option>Forwarded</option>
-            <option>Resolved</option>
-            <option>Closed</option>
+            <option value="Awaiting Review">Awaiting Review</option>
+            <option value="Assigned">Assigned</option>
+            <option value="Forwarded">Forwarded</option>
+            <option value="Completed">Completed (Resolved & Closed)</option>
+            <option value="Resolved">Resolved</option>
+            <option value="Closed">Closed</option>
             <option value="Overdue">Overdue</option>
           </select>
           <select id="priorityFilter" aria-label="Filter by priority">

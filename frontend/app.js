@@ -511,16 +511,18 @@ function filteredCases() {
   const priority = $('#priorityFilter') ? $('#priorityFilter').value : 'all';
 
   return cases.filter(c => {
-    if (overdueOnly && !isOverdue(c)) return false;
+    if (overdueOnly || status === 'Overdue') {
+      if (!isOverdue(c)) return false;
+    } else if (status === 'Completed') {
+      if (!['Resolved', 'Closed'].includes(c.status)) return false;
+    } else if (status !== 'all' && c.status !== status) {
+      return false;
+    }
+
     if (source !== 'all' && c.source !== source) return false;
     if (category !== 'all' && c.category !== category) return false;
     if (subcategory !== 'all' && c.subcategory !== subcategory) return false;
     if (department !== 'all' && c.assigned !== department) return false;
-    if (status === 'Overdue') {
-      if (!isOverdue(c)) return false;
-    } else if (status !== 'all' && c.status !== status) {
-      return false;
-    }
     if (priority !== 'all' && (c.priority || 'Normal') !== priority) return false;
     if (q) {
       const text = [c.ref, c.name, c.subject, c.source, c.category, c.subcategory, c.assigned, c.description, c.priority].join(' ').toLowerCase();
@@ -558,7 +560,7 @@ function renderAll() {
   if (cat !== 'all') labels.push(`Category: ${cat}`);
   if (subcat !== 'all') labels.push(`Subcategory: ${subcat}`);
   if (dept !== 'all') labels.push(`Department: ${dept}`);
-  if (s !== 'all' && s !== 'Overdue') labels.push(`Status: ${s}`);
+  if (s !== 'all' && s !== 'Overdue') labels.push(`Status: ${s === 'Completed' ? 'Completed (Resolved / Closed)' : s}`);
   if (p !== 'all') labels.push(`Priority: ${p}`);
   if (q) labels.push(`Search: ${q}`);
 
@@ -567,13 +569,22 @@ function renderAll() {
   bindRows();
 }
 
-['#searchInput', '#sourceFilter', '#categoryFilter', '#subcategoryFilter', '#departmentFilter', '#statusFilter', '#priorityFilter'].forEach(id => {
+['#searchInput', '#sourceFilter', '#categoryFilter', '#subcategoryFilter', '#departmentFilter', '#priorityFilter'].forEach(id => {
   const el = $(id);
   if (el) {
     el.oninput = renderAll;
     el.onchange = renderAll;
   }
 });
+
+if ($('#statusFilter')) {
+  const handleStatusChange = () => {
+    overdueOnly = ($('#statusFilter').value === 'Overdue');
+    renderAll();
+  };
+  $('#statusFilter').oninput = handleStatusChange;
+  $('#statusFilter').onchange = handleStatusChange;
+}
 
 function drill({ status = 'all', category = 'all', source = 'all', department = 'all', subcategory = 'all', search = '', priority = 'all' }) {
   overdueOnly = (status === 'Overdue' || status === 'overdue');
@@ -1687,7 +1698,7 @@ function save() {
   animateCounter($('#totalStat'), cases.length);
   animateCounter($('#awaitingStat'), cases.filter(c => c.status === 'Awaiting Review').length);
   animateCounter($('#forwardedStat'), cases.filter(c => c.status === 'Forwarded' || c.status === 'Assigned').length);
-  animateCounter($('#resolvedStat'), cases.filter(c => c.status === 'Resolved').length);
+  animateCounter($('#resolvedStat'), cases.filter(c => c.status === 'Resolved' || c.status === 'Closed').length);
   if ($('#overdueStat')) animateCounter($('#overdueStat'), cases.filter(isOverdue).length);
   if ($('#donutTotal')) animateCounter($('#donutTotal'), cases.length);
 

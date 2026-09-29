@@ -1,4 +1,4 @@
-const crypto = require('node:crypto');
+const crypto = require('crypto');
 const { get, run } = require('./database/database');
 
 const secret = process.env.AUTH_SECRET || (() => {

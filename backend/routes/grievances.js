@@ -453,13 +453,19 @@ router.get('/', async (req, res, next) => {
 router.get('/statistics', async (req, res, next) => {
   try {
     const total = await get('SELECT COUNT(*) AS total FROM grievances');
+    const awaiting = await get("SELECT COUNT(*) AS count FROM grievances WHERE status = 'Awaiting Review'");
+    const completed = await get("SELECT COUNT(*) AS count FROM grievances WHERE status IN ('Resolved', 'Closed')");
+    const overdue = await get("SELECT COUNT(*) AS count FROM grievances WHERE due_at IS NOT NULL AND due_at < CURRENT_TIMESTAMP AND status NOT IN ('Resolved', 'Closed')");
     const byStatus = await all('SELECT status, COUNT(*) AS count FROM grievances GROUP BY status');
     const byCategory = await all('SELECT category, COUNT(*) AS count FROM grievances GROUP BY category');
     const bySource = await all('SELECT source, COUNT(*) AS count FROM grievances GROUP BY source');
     const byDepartment = await all('SELECT assigned_division AS department, COUNT(*) AS count FROM grievances WHERE assigned_division IS NOT NULL GROUP BY assigned_division');
 
     res.json({
-      total: Number(total.total),
+      total: Number(total?.total || 0),
+      awaitingReview: Number(awaiting?.count || 0),
+      completed: Number(completed?.count || 0),
+      overdue: Number(overdue?.count || 0),
       byStatus: byStatus.map(x => ({ status: x.status, count: Number(x.count) })),
       byCategory: byCategory.map(x => ({ category: x.category, count: Number(x.count) })),
       bySource: bySource.map(x => ({ source: x.source, count: Number(x.count) })),

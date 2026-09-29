@@ -5,6 +5,6 @@
   "description": "Static frontend for the MWCA Grievance Management System",
   "scripts": {
     "start": "node static-server.js",
-    "dev": "node --watch static-server.js"
+    "dev": "node static-server.js"
   }
 }

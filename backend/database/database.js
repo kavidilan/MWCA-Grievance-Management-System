@@ -1,4 +1,17 @@
-const { DatabaseSync } = require('node:sqlite');
+let DatabaseSync;
+try {
+  DatabaseSync = require('node:sqlite').DatabaseSync;
+} catch (err) {
+  try {
+    DatabaseSync = require('better-sqlite3');
+  } catch (e2) {
+    console.error('❌ SQLite Module Error: Built-in `node:sqlite` requires Node.js v22.5.0 or higher.');
+    console.error('   Your current Node.js version is:', process.version);
+    console.error('   Please upgrade Node.js to v22.5+ or v23 at https://nodejs.org/');
+    throw new Error(`Node.js ${process.version} does not support built-in 'node:sqlite'. Please upgrade Node.js to v22.5.0 or higher.`);
+  }
+}
+
 const fs = require('fs');
 const path = require('path');
 
